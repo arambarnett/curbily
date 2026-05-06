@@ -1,0 +1,291 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, role
+    //
+    // Collection: projects
+    // Fields: title, description, status, ownerId, createdAt, updatedAt, scriptText
+    //
+    // Collection: projects/{projectId}/scenes
+    // Fields: projectId, sceneNumber, slugline, location, setting, timeOfDay, cast, props, wardrobe, stunts, equipment, notes
+    //
+    // Collection: projects/{projectId}/budget
+    // Fields: projectId, category, description, amount, status
+    //
+    // Collection: projects/{projectId}/schedule
+    // Fields: projectId, dayNumber, date, sceneIds, notes
+    //
+    // Collection: contacts
+    // Fields: name, email, phone, roles, rate, location, tags, notes, reliability
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isEmailAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email != null &&
+        (request.auth.token.email == "jonanthonybarnett@gmail.com" || 
+         request.auth.token.email == "aram.barnett@gmail.com");
+    }
+
+    function isAdmin() {
+      return isEmailAdmin() || 
+        (isAuthenticated() && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin');
+    }
+
+    function getProject(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId));
+    }
+
+    function isProjectViewer(projectId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/projects/$(projectId)) &&
+        (
+          getProject(projectId).data.ownerId == request.auth.uid ||
+          (
+            request.auth.token.email != null && 
+            getProject(projectId).data.get('sharedEmails', []) != null && 
+            request.auth.token.email in getProject(projectId).data.get('sharedEmails', [])
+          ) ||
+          getProject(projectId).data.get('publicAccess', 'none') == 'edit' ||
+          getProject(projectId).data.get('publicAccess', 'none') == 'view'
+        );
+    }
+    
+    function isProjectOwner(projectId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/projects/$(projectId)) &&
+        (
+          getProject(projectId).data.ownerId == request.auth.uid ||
+          (
+            request.auth.token.email != null && 
+            getProject(projectId).data.get('sharedEmails', []) != null && 
+            request.auth.token.email in getProject(projectId).data.get('sharedEmails', [])
+          ) ||
+          getProject(projectId).data.get('publicAccess', 'none') == 'edit'
+        );
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/connection {
+      allow read: if isAuthenticated();
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && 
+        (request.resource.data.get('role', 'user') != 'admin' || isEmailAdmin());
+      allow update: if isOwner(uid) && 
+        (request.resource.data.get('role', 'user') != 'admin' || isAdmin());
+      allow delete: if isOwner(uid) || isAdmin();
+
+      match /integrations/{integrationId} {
+        allow read, write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    match /folders/{folderId} {
+      allow get: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow list: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /projects/{projectId} {
+      allow get: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin() || (request.auth.token.email != null && resource.data.sharedEmails != null && request.auth.token.email in resource.data.sharedEmails) || resource.data.publicAccess == 'view' || resource.data.publicAccess == 'edit');
+      allow list: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || (request.auth.token.email != null && resource.data.sharedEmails != null && request.auth.token.email in resource.data.sharedEmails) || resource.data.publicAccess == 'view' || resource.data.publicAccess == 'edit');
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin() || (request.auth.token.email != null && resource.data.sharedEmails != null && request.auth.token.email in resource.data.sharedEmails) || resource.data.publicAccess == 'edit');
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      match /scenes/{sceneId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /budget/{itemId} {
+        allow get: if isProjectViewer(projectId) || isAdmin();
+        allow list: if isAuthenticated() && (
+          resource.data.get('ownerId', '') == request.auth.uid ||
+          isProjectViewer(projectId)
+        );
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /episodes/{episodeId} {
+        allow get: if isProjectViewer(projectId) || isAdmin();
+        allow list: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /budget_history/{historyId} {
+        allow get: if isProjectViewer(projectId) || isAdmin();
+        allow list: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /schedule/{dayId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /shots/{shotId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /gear/{gearId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /outreach/{threadId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /locations/{locationId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /permits/{permitId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /venues/{venueId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /contacts/{contactId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /props/{propId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /wardrobe/{wardrobeId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /messages/{messageId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /integrations/{integrationId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /notifications/{notificationId} {
+        allow read, write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /travel/{travelId} {
+        allow read, write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /catering/{cateringId} {
+        allow read, write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /call_sheets/{callSheetId} {
+        allow read: if isProjectViewer(projectId) || isAdmin();
+        allow write: if isProjectOwner(projectId) || isAdmin();
+      }
+      match /payment_methods/{paymentMethodId} {
+        allow read, write: if isProjectOwner(projectId) || isAdmin();
+      }
+    }
+
+    match /contacts/{contactId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        (request.resource.data.isGlobal == false && request.resource.data.ownerId == request.auth.uid) || 
+        contactId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || 
+        contactId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    match /outreachThreads/{threadId} {
+      allow list: if isAuthenticated() && (
+        resource.data.get('ownerId', '') == request.auth.uid || 
+        resource.data.get('contactId', '') == request.auth.uid ||
+        resource.data.get('projectId', '') == '' // Fallback for migration
+      );
+      allow get: if isAuthenticated() && (
+        resource.data.get('ownerId', '') == request.auth.uid || 
+        resource.data.get('contactId', '') == request.auth.uid || 
+        isProjectOwner(resource.data.projectId) || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        isProjectOwner(request.resource.data.projectId) || 
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.get('ownerId', '') == request.auth.uid || 
+        resource.data.contactId == request.auth.uid || 
+        isProjectOwner(resource.data.projectId) || 
+        isAdmin()
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /unionRates/{rateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /canonicalRates/{rateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /dimPositions/{positionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /dimLocalMap/{mapId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /dimSchedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

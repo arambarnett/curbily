@@ -1,0 +1,6 @@
+{
+  "name": "Curbily",
+  "description": "A virtual production coordinator and audience analysis agent for production professionals. Turn scripts into breakdowns, budgets, and schedules, perform deep YouTube audience audits, and match crew from your network.",
+  "requestFramePermissions": ["geolocation", "microphone", "camera"],
+  "majorCapabilities": []
+}

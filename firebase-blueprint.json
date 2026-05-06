@@ -1,0 +1,467 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["producer", "admin"] },
+        "tokens": { "type": "number" },
+        "isSubscribed": { "type": "boolean" },
+        "subscriptionId": { "type": "string" },
+        "stripeCustomerId": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A Curbily production project",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["development", "pre-production", "production", "post-production", "completed"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "scriptText": { "type": "string" },
+        "location": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "useContingency": { "type": "boolean" },
+        "contingencyRate": { "type": "number" }
+      },
+      "required": ["title", "ownerId"]
+    },
+    "Scene": {
+      "title": "Scene",
+      "description": "A scene in a project",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "sceneNumber": { "type": "number" },
+        "slugline": { "type": "string" },
+        "location": { "type": "string" },
+        "setting": { "type": "string", "enum": ["INT", "EXT"] },
+        "timeOfDay": { "type": "string", "enum": ["DAY", "NIGHT", "MORNING", "EVENING"] },
+        "cast": { "type": "array", "items": { "type": "string" } },
+        "props": { "type": "array", "items": { "type": "string" } },
+        "wardrobe": { "type": "array", "items": { "type": "string" } },
+        "stunts": { "type": "array", "items": { "type": "string" } },
+        "equipment": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" },
+        "duration": { "type": "number" }
+      },
+      "required": ["projectId", "sceneNumber", "slugline"]
+    },
+    "Contact": {
+      "title": "Contact",
+      "description": "A Curbily crew member or vendor",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "rate": { "type": "number" },
+        "location": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" },
+        "reliability": { "type": "number" },
+        "uid": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "inviteSentAt": { "type": "string", "format": "date-time" },
+        "claimed": { "type": "boolean" }
+      },
+      "required": ["name"]
+    },
+    "BudgetItem": {
+      "title": "Budget Item",
+      "description": "A line item in a project budget",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["estimated", "actual", "paid"] },
+        "unit": { "type": "string", "enum": ["flat", "hourly", "daily"] },
+        "quantity": { "type": "number" },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date-time" },
+              "oldAmount": { "type": "number" },
+              "newAmount": { "type": "number" },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["projectId", "category", "description", "amount"]
+    },
+    "ScheduleDay": {
+      "title": "Schedule Day",
+      "description": "A shooting day in a project schedule",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "dayNumber": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "sceneIds": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" },
+        "dayLength": { "type": "number", "enum": [8, 10, 12] }
+      },
+      "required": ["projectId", "dayNumber"]
+    },
+    "Shot": {
+      "title": "Shot",
+      "description": "A specific camera shot",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "sceneId": { "type": "string" },
+        "shotNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "size": { "type": "string" },
+        "angle": { "type": "string" },
+        "movement": { "type": "string" },
+        "equipment": { "type": "string" }
+      },
+      "required": ["projectId", "sceneId", "shotNumber"]
+    },
+    "GearItem": {
+      "title": "Gear Item",
+      "description": "Equipment needed for production",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "source": { "type": "string", "enum": ["owned", "rental", "purchase"] },
+        "vendorId": { "type": "string" },
+        "cost": { "type": "number" },
+        "status": { "type": "string", "enum": ["needed", "sourced", "booked", "on-set"] },
+        "isApproved": { "type": "boolean" },
+        "isPurchased": { "type": "boolean" },
+        "taskRabbitStatus": { "type": "string", "enum": ["none", "requested", "assigned", "completed"] }
+      },
+      "required": ["projectId", "name"]
+    },
+    "OutreachThread": {
+      "title": "Outreach Thread",
+      "description": "Communication with crew or vendors",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "contactId": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "sent", "negotiating", "confirmed", "declined"] },
+        "lastMessage": { "type": "string" },
+        "draftEmail": { "type": "string" }
+      },
+      "required": ["projectId", "contactId"]
+    },
+    "Venue": {
+      "title": "Venue",
+      "description": "A production location",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "cost": { "type": "number" },
+        "status": { "type": "string", "enum": ["research", "contacted", "scouted", "booked"] },
+        "notes": { "type": "string" },
+        "isApproved": { "type": "boolean" },
+        "platform": { "type": "string", "enum": ["airbnb", "peerspace", "direct"] },
+        "platformId": { "type": "string" }
+      },
+      "required": ["projectId", "name"]
+    },
+    "PropItem": {
+      "title": "Prop Item",
+      "description": "A prop needed for production",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "source": { "type": "string", "enum": ["owned", "rental", "purchase", "build"] },
+        "cost": { "type": "number" },
+        "status": { "type": "string", "enum": ["needed", "sourced", "acquired"] },
+        "isApproved": { "type": "boolean" },
+        "isPurchased": { "type": "boolean" },
+        "taskRabbitStatus": { "type": "string", "enum": ["none", "requested", "assigned", "completed"] },
+        "purchaseUrl": { "type": "string" },
+        "affiliateLink": { "type": "string" }
+      },
+      "required": ["projectId", "name"]
+    },
+    "WardrobeItem": {
+      "title": "Wardrobe Item",
+      "description": "Clothing needed for production",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "character": { "type": "string" },
+        "description": { "type": "string" },
+        "source": { "type": "string", "enum": ["owned", "rental", "purchase", "build"] },
+        "cost": { "type": "number" },
+        "status": { "type": "string", "enum": ["needed", "sourced", "acquired"] },
+        "isApproved": { "type": "boolean" },
+        "isPurchased": { "type": "boolean" },
+        "taskRabbitStatus": { "type": "string", "enum": ["none", "requested", "assigned", "completed"] },
+        "purchaseUrl": { "type": "string" },
+        "affiliateLink": { "type": "string" }
+      },
+      "required": ["projectId", "character"]
+    },
+    "Integration": {
+      "title": "Integration",
+      "description": "External account connection",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "platform": { "type": "string", "enum": ["airbnb", "uber", "taskrabbit", "google-sheets", "amazon", "temu", "walmart", "alibaba", "quickbooks"] },
+        "status": { "type": "string", "enum": ["connected", "disconnected"] },
+        "accountName": { "type": "string" },
+        "lastSync": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "platform", "status"]
+    },
+    "TravelLogistics": {
+      "title": "Travel Logistics",
+      "description": "Travel and lodging details",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["flight", "hotel", "car-rental"] },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["needed", "booked", "completed"] },
+        "cost": { "type": "number" },
+        "details": { "type": "string" }
+      },
+      "required": ["projectId", "type", "description"]
+    },
+    "CateringOption": {
+      "title": "Catering Option",
+      "description": "Food and beverage services",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["catering", "delivery", "crafty"] },
+        "costPerPerson": { "type": "number" },
+        "status": { "type": "string", "enum": ["research", "booked"] },
+        "contactInfo": { "type": "string" },
+        "purchaseUrl": { "type": "string" }
+      },
+      "required": ["projectId", "name", "type"]
+    },
+    "CallSheet": {
+      "title": "Call Sheet",
+      "description": "A daily call sheet for cast and crew",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "dayId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "callTime": { "type": "string" },
+        "location": { "type": "string" },
+        "weather": { "type": "string" },
+        "nearestHospital": { "type": "string" },
+        "parkingInfo": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "sent"] },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "recipients": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["projectId", "dayId", "date", "callTime", "location"]
+    },
+    "PaymentMethod": {
+      "title": "Payment Method",
+      "description": "A stored payment method for autonomous purchasing",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["card"] },
+        "last4": { "type": "string" },
+        "brand": { "type": "string" },
+        "expMonth": { "type": "number" },
+        "expYear": { "type": "number" },
+        "isDefault": { "type": "boolean" },
+        "autonomousPurchasingEnabled": { "type": "boolean" }
+      },
+      "required": ["projectId", "type", "last4", "brand"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notification",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["booking", "approval", "response", "system"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "type", "title", "message", "isRead"]
+    },
+    "UnionRate": {
+      "title": "Union Rate",
+      "description": "Standard union rates for production roles",
+      "type": "object",
+      "properties": {
+        "union": { "type": "string", "enum": ["SAG-AFTRA", "DGA", "WGA", "IATSE", "TEAMSTERS"] },
+        "contract": { "type": "string" },
+        "tier": { "type": "string", "enum": ["Head", "Key", "Second", "Third", "Utility"] },
+        "role": { "type": "string" },
+        "rate": { "type": "number" },
+        "unit": { "type": "string", "enum": ["hour", "day", "week", "flat"] },
+        "period": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["union", "contract", "role", "rate", "unit"]
+    },
+    "CanonicalRate": {
+      "title": "Canonical Rate",
+      "description": "Normalized union minimum rates",
+      "type": "object",
+      "properties": {
+        "union": { "type": "string" },
+        "agreementCode": { "type": "string" },
+        "track": { "type": "string", "enum": ["Majors", "Independents", "Basic", "Other"] },
+        "scheduleNumber": { "type": "string" },
+        "scheduleName": { "type": "string" },
+        "occCode": { "type": "string" },
+        "classification": { "type": "string" },
+        "rateType": { "type": "string", "enum": ["hour", "day", "week", "flat", "step"] },
+        "amountUsd": { "type": "number" },
+        "effectiveStart": { "type": "string", "format": "date-time" },
+        "effectiveEnd": { "type": "string", "format": "date-time" },
+        "geographyState": { "type": "string" },
+        "geographyCity": { "type": "string" },
+        "localUnion": { "type": "string" },
+        "sourceFile": { "type": "string" },
+        "sourcePdfUrl": { "type": "string" },
+        "extractionConfidence": { "type": "string", "enum": ["high", "medium", "low"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["union", "occCode", "classification", "rateType", "amountUsd", "sourceFile"]
+    },
+    "DimPosition": {
+      "title": "Dimension Position",
+      "description": "Unique occupation codes and classification aliases",
+      "type": "object",
+      "properties": {
+        "occCode": { "type": "string" },
+        "classification": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "union": { "type": "string" }
+      },
+      "required": ["occCode", "classification"]
+    },
+    "DimLocalMap": {
+      "title": "Dimension Local Map",
+      "description": "Geography to local union routing",
+      "type": "object",
+      "properties": {
+        "state": { "type": "string" },
+        "city": { "type": "string" },
+        "likelyLocals": { "type": "array", "items": { "type": "string" } },
+        "agreementFamily": { "type": "string" }
+      },
+      "required": ["state", "city"]
+    },
+    "DimSchedule": {
+      "title": "Dimension Schedule",
+      "description": "Schedule metadata and eligibility notes",
+      "type": "object",
+      "properties": {
+        "union": { "type": "string" },
+        "agreementCode": { "type": "string" },
+        "scheduleName": { "type": "string" },
+        "eligibilityNotes": { "type": "string" },
+        "datasetCreatedAt": { "type": "string", "format": "date-time" },
+        "sourceEffectiveStart": { "type": "string", "format": "date-time" },
+        "sourceEffectiveEnd": { "type": "string", "format": "date-time" },
+        "extractedByScript": { "type": "string" }
+      },
+      "required": ["union", "agreementCode", "scheduleName"]
+    },
+    "Folder": {
+      "title": "Folder",
+      "description": "Folder to group projects",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "A feedback record for a completed job.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "raterId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "score": { "type": "number", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "raterId", "recipientId", "score"]
+    },
+    "BudgetSnapshot": {
+      "title": "Budget Snapshot",
+      "description": "A point-in-time snapshot of the entire budget.",
+      "type": "object",
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "BudgetItem" } },
+        "total": { "type": "number" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["items", "total", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "UserProfile", "description": "User profiles" },
+    "/folders/{folderId}": { "schema": "Folder", "description": "Folders for projects" },
+    "/projects/{projectId}": { "schema": "Project", "description": "Projects" },
+    "/unionRates/{rateId}": { "schema": "UnionRate", "description": "Global union rates" },
+    "/projects/{projectId}/scenes/{sceneId}": { "schema": "Scene", "description": "Scenes for a project" },
+    "/projects/{projectId}/shots/{shotId}": { "schema": "Shot", "description": "Shots for a project" },
+    "/projects/{projectId}/gear/{gearId}": { "schema": "GearItem", "description": "Gear for a project" },
+    "/outreachThreads/{threadId}": { "schema": "OutreachThread", "description": "Global outreach threads" },
+    "/projects/{projectId}/venues/{venueId}": { "schema": "Venue", "description": "Venues for a project" },
+    "/projects/{projectId}/budget/{itemId}": { "schema": "BudgetItem", "description": "Budget items for a project" },
+    "/projects/{projectId}/schedule/{dayId}": { "schema": "ScheduleDay", "description": "Schedule days for a project" },
+    "/projects/{projectId}/messages/{messageId}": { "schema": "ChatMessage", "description": "Chat messages for a project" },
+    "/projects/{projectId}/props/{propId}": { "schema": "PropItem", "description": "Props for a project" },
+    "/projects/{projectId}/wardrobe/{wardrobeId}": { "schema": "WardrobeItem", "description": "Wardrobe for a project" },
+    "/projects/{projectId}/integrations/{integrationId}": { "schema": "Integration", "description": "Integrations for a project" },
+    "/projects/{projectId}/notifications/{notificationId}": { "schema": "Notification", "description": "Notifications for a project" },
+    "/projects/{projectId}/travel/{travelId}": { "schema": "TravelLogistics", "description": "Travel for a project" },
+    "/projects/{projectId}/catering/{cateringId}": { "schema": "CateringOption", "description": "Catering for a project" },
+    "/projects/{projectId}/call_sheets/{callSheetId}": { "schema": "CallSheet", "description": "Call sheets for a project" },
+    "/projects/{projectId}/payment_methods/{paymentMethodId}": { "schema": "PaymentMethod", "description": "Payment methods for a project" },
+    "/projects/{projectId}/budget_history/{historyId}": { "schema": "BudgetSnapshot", "description": "Snapshots of the budget for versioning" },
+    "/ratings/{ratingId}": { "schema": "Rating", "description": "Global ratings and reviews" },
+    "/contacts/{contactId}": { "schema": "Contact", "description": "Crew and vendor database" },
+    "/canonicalRates/{rateId}": { "schema": "CanonicalRate", "description": "Normalized union minimum rates" },
+    "/dimPositions/{positionId}": { "schema": "DimPosition", "description": "Unique occupation codes" },
+    "/dimLocalMap/{mapId}": { "schema": "DimLocalMap", "description": "Geography to local union routing" },
+    "/dimSchedules/{scheduleId}": { "schema": "DimSchedule", "description": "Schedule metadata" }
+  }
+}
