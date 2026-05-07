@@ -63,6 +63,7 @@ export default function EditProfile() {
     isMinor: false,
     gender: '',
     contentStyles: [] as string[],
+    creatorChannels: [] as { platform: string, handle: string, url: string, followers: string, genre: string, averageViews: string, engagementRate: string }[],
     actingReelLinks: [] as { label: string, url: string }[],
     
     // Adult specific
@@ -122,6 +123,15 @@ export default function EditProfile() {
               linkedinUrl: data.linkedinUrl || '',
               instagramUrl: data.instagramUrl || '',
               twitterUrl: data.twitterUrl || '',
+              creatorChannels: data.creatorChannels?.map((channel: any) => ({
+                platform: channel.platform || 'Instagram',
+                handle: channel.handle || '',
+                url: channel.url || '',
+                followers: String(channel.followers || ''),
+                genre: channel.genre || '',
+                averageViews: String(channel.averageViews || ''),
+                engagementRate: String(channel.engagementRate || ''),
+              })) || [],
               portfolioUrl: data.portfolioUrl || '',
               actingReelLinks: data.actingReelLinks || (data.actingReelUrl ? [{ label: 'Acting Reel', url: data.actingReelUrl }] : []),
               dietaryRestrictions: data.dietaryRestrictions || (data.dietary ? [data.dietary] : [])
@@ -348,6 +358,18 @@ export default function EditProfile() {
         linkedinUrl: formData.linkedinUrl,
         instagramUrl: formData.instagramUrl,
         twitterUrl: formData.twitterUrl,
+        creatorChannels: formData.creatorChannels
+          .filter(channel => channel.platform || channel.handle || channel.url)
+          .map(channel => ({
+            platform: channel.platform || 'Instagram',
+            handle: channel.handle,
+            url: channel.url,
+            followers: parseInt(String(channel.followers)) || 0,
+            genre: channel.genre,
+            averageViews: parseInt(String(channel.averageViews)) || 0,
+            engagementRate: parseFloat(String(channel.engagementRate)) || 0,
+          })),
+        contentGenre: formData.creatorChannels.map(channel => channel.genre).filter(Boolean).join(', '),
         projectTypeRates: formData.projectTypeRates
           .filter(r => r.type && (r.minRate || r.maxRate))
           .map(r => ({ type: r.type, minRate: parseInt(String(r.minRate)) || 0, maxRate: parseInt(String(r.maxRate)) || 0, rateRaw: `${r.minRate}-${r.maxRate}` })),
@@ -655,6 +677,99 @@ export default function EditProfile() {
                         <Input className="h-9 text-[10px] uppercase font-bold flex-1" placeholder="Label (e.g. My Site)" value={link.label} onChange={(e) => updateLink('professional', idx, 'label', e.target.value)} />
                         <Input className="h-9 text-xs flex-[2]" placeholder="https://..." value={link.url} onChange={(e) => updateLink('professional', idx, 'url', e.target.value)} />
                         <Button variant="ghost" size="icon" onClick={() => removeLink('professional', idx)} className="h-9 w-9 text-red-500">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Creator Channels</label>
+                      <p className="text-[10px] text-slate-500 mt-1">Connect social channels for brand/manager marketplace matching. Follower counts can be manually entered until platform OAuth is connected.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({
+                        ...formData,
+                        creatorChannels: [...formData.creatorChannels, { platform: 'Instagram', handle: '', url: '', followers: '', genre: '', averageViews: '', engagementRate: '' }]
+                      })}
+                      className="h-8 text-[9px] uppercase font-black tracking-widest"
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Add Channel
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {formData.creatorChannels.length === 0 && (
+                      <div className="rounded-xl bg-white border border-blue-100 p-4 text-xs text-slate-500">
+                        Add Instagram, TikTok, YouTube, Twitch, or other creator channels so brands can evaluate audience fit.
+                      </div>
+                    )}
+                    {formData.creatorChannels.map((channel, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-7 gap-2 rounded-xl bg-white border border-blue-100 p-3">
+                        <select
+                          className="h-9 rounded-md border border-slate-200 bg-white px-2 text-xs md:col-span-1"
+                          value={channel.platform}
+                          onChange={(e) => {
+                            const next = [...formData.creatorChannels];
+                            next[idx] = { ...next[idx], platform: e.target.value };
+                            setFormData({ ...formData, creatorChannels: next });
+                          }}
+                        >
+                          {['Instagram', 'TikTok', 'YouTube', 'Twitch', 'Facebook', 'X', 'Other'].map(platform => <option key={platform}>{platform}</option>)}
+                        </select>
+                        <Input
+                          className="h-9 text-xs md:col-span-1"
+                          placeholder="@handle"
+                          value={channel.handle}
+                          onChange={(e) => {
+                            const next = [...formData.creatorChannels];
+                            next[idx] = { ...next[idx], handle: e.target.value };
+                            setFormData({ ...formData, creatorChannels: next });
+                          }}
+                        />
+                        <Input
+                          className="h-9 text-xs md:col-span-2"
+                          placeholder="Channel URL"
+                          value={channel.url}
+                          onChange={(e) => {
+                            const next = [...formData.creatorChannels];
+                            next[idx] = { ...next[idx], url: e.target.value };
+                            setFormData({ ...formData, creatorChannels: next });
+                          }}
+                        />
+                        <Input
+                          className="h-9 text-xs"
+                          placeholder="Followers"
+                          value={channel.followers}
+                          onChange={(e) => {
+                            const next = [...formData.creatorChannels];
+                            next[idx] = { ...next[idx], followers: e.target.value };
+                            setFormData({ ...formData, creatorChannels: next });
+                          }}
+                        />
+                        <Input
+                          className="h-9 text-xs"
+                          placeholder="Genre"
+                          value={channel.genre}
+                          onChange={(e) => {
+                            const next = [...formData.creatorChannels];
+                            next[idx] = { ...next[idx], genre: e.target.value };
+                            setFormData({ ...formData, creatorChannels: next });
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-red-500"
+                          onClick={() => setFormData({
+                            ...formData,
+                            creatorChannels: formData.creatorChannels.filter((_, channelIndex) => channelIndex !== idx)
+                          })}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>

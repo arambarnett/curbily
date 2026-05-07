@@ -2,30 +2,44 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/AuthProvider';
-import Dashboard from './pages/Dashboard';
-import CrewHome from './pages/TalentHome';
-import ProjectDetail from './pages/ProjectDetail';
-import Network from './pages/Network';
-import Login from './pages/Login';
-import Landing from './pages/Landing';
-import Join from './pages/Join';
-import StudioJoin from './pages/StudioJoin';
-import EditProfile from './pages/EditProfile';
-import NetworkInfo from './pages/NetworkInfo';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
-import InvestmentMemo from './pages/InvestmentMemo';
-import TargetOutreach from './pages/TargetOutreach';
-import CallSheets from './pages/CallSheets';
-import ProductionCalendar from './pages/ProductionCalendar';
-import Bookings from './pages/Bookings';
-import Payments from './pages/Payments';
-import JobInvites from './pages/JobInvites';
-import Pricing from './pages/Pricing';
-import Settings from './pages/Settings';
 import Layout from './components/Layout';
 
 import { Toaster } from 'sonner';
+
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const CrewHome = React.lazy(() => import('./pages/TalentHome'));
+const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
+const Network = React.lazy(() => import('./pages/Network'));
+const Login = React.lazy(() => import('./pages/Login'));
+const Landing = React.lazy(() => import('./pages/Landing'));
+const Join = React.lazy(() => import('./pages/Join'));
+const StudioJoin = React.lazy(() => import('./pages/StudioJoin'));
+const EditProfile = React.lazy(() => import('./pages/EditProfile'));
+const NetworkInfo = React.lazy(() => import('./pages/NetworkInfo'));
+const Terms = React.lazy(() => import('./pages/Terms'));
+const Privacy = React.lazy(() => import('./pages/Privacy'));
+const InvestmentMemo = React.lazy(() => import('./pages/InvestmentMemo'));
+const TargetOutreach = React.lazy(() => import('./pages/TargetOutreach'));
+const CallSheets = React.lazy(() => import('./pages/CallSheets'));
+const ProductionCalendar = React.lazy(() => import('./pages/ProductionCalendar'));
+const Bookings = React.lazy(() => import('./pages/Bookings'));
+const Payments = React.lazy(() => import('./pages/Payments'));
+const JobInvites = React.lazy(() => import('./pages/JobInvites'));
+const Pricing = React.lazy(() => import('./pages/Pricing'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const InfluencerMarketplace = React.lazy(() => import('./pages/InfluencerMarketplace'));
+const MarketplaceDashboard = React.lazy(() => import('./pages/MarketplaceDashboard'));
+const Brands = React.lazy(() => import('./pages/Brands'));
+const Managers = React.lazy(() => import('./pages/Managers'));
+
+function PageLoader() {
+  return (
+    <div className="flex h-screen flex-col items-center justify-center gap-4 bg-slate-50">
+      <Loader2 className="h-8 w-8 animate-spin text-slate-900" />
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Loading...</p>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
@@ -82,96 +96,102 @@ export default function App() {
     <AuthProvider>
       <Toaster position="top-center" expand={true} richColors />
       <Router>
-        <Routes>
-          <Route path="/landing" element={<Landing />} />
-          <Route path="/network-info" element={<NetworkInfo />} />
-          <Route path="/join" element={<Join />} />
-          <Route path="/studio-join" element={<StudioJoin />} />
-          <Route path="/edit-profile" element={
-            <ProtectedRoute>
-              <EditProfile />
-            </ProtectedRoute>
-          } />
-          <Route path="/login" element={<Login />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/targets" element={<TargetOutreach />} />
-          <Route path="/investment" element={<InvestmentMemo />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout>
-                <Home />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/projects" element={<Navigate to="/" replace />} />
-          <Route path="/project/:id" element={<NavigateToProjects />} />
-          <Route path="/project/:id/:agent" element={<NavigateToProjectsAgent />} />
-          <Route path="/projects/:id" element={
-            <ProtectedRoute>
-              <Layout>
-                <ProjectDetail />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/projects/:id/:agent" element={
-            <ProtectedRoute>
-              <Layout>
-                <ProjectDetail />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/network" element={
-            <ProtectedRoute>
-              <Layout>
-                <Network />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/call-sheets" element={
-            <ProtectedRoute>
-              <Layout>
-                <CallSheets />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/calendar" element={
-            <ProtectedRoute>
-              <Layout>
-                <ProductionCalendar />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/bookings" element={
-            <ProtectedRoute>
-              <Layout>
-                <Bookings />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/payments" element={
-            <ProtectedRoute>
-              <Layout>
-                <Payments />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/invites" element={
-            <ProtectedRoute>
-              <Layout>
-                <JobInvites />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <Layout>
-                <Settings />
-              </Layout>
-            </ProtectedRoute>
-          } />
-        </Routes>
+        <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/network-info" element={<NetworkInfo />} />
+            <Route path="/join" element={<Join />} />
+            <Route path="/studio-join" element={<StudioJoin />} />
+            <Route path="/edit-profile" element={
+              <ProtectedRoute>
+                <EditProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/targets" element={<TargetOutreach />} />
+            <Route path="/investment" element={<InvestmentMemo />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/influencer-marketplace" element={<InfluencerMarketplace />} />
+            <Route path="/influencer-marketplace/dashboard" element={<MarketplaceDashboard />} />
+            <Route path="/brands" element={<Brands />} />
+            <Route path="/managers" element={<Managers />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Home />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects" element={<Navigate to="/" replace />} />
+            <Route path="/project/:id" element={<NavigateToProjects />} />
+            <Route path="/project/:id/:agent" element={<NavigateToProjectsAgent />} />
+            <Route path="/projects/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProjectDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects/:id/:agent" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProjectDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/network" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Network />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/call-sheets" element={
+              <ProtectedRoute>
+                <Layout>
+                  <CallSheets />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/calendar" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProductionCalendar />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/bookings" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Bookings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/payments" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Payments />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/invites" element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobInvites />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </React.Suspense>
       </Router>
     </AuthProvider>
   );

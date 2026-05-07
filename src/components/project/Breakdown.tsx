@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { Scene, Project } from '../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Wand2, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Wand2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export default function Breakdown({ projectId, project }: { projectId: string, project: Project }) {
+export default function Breakdown({ projectId, project, scriptText }: { projectId: string, project: Project, scriptText?: string }) {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [loading, setLoading] = useState(true);
   const [showVfxOnly, setShowVfxOnly] = useState(false);
@@ -51,6 +51,7 @@ export default function Breakdown({ projectId, project }: { projectId: string, p
 
   const vfxCount = scenes.filter(s => s.vfx && s.vfx.length > 0).length;
   const displayScenes = showVfxOnly ? scenes.filter(s => s.vfx && s.vfx.length > 0) : scenes;
+  const scriptForReview = scriptText || project.scriptText || '';
 
   const getSceneColor = (scene: Scene) => {
     const isNight = scene.timeOfDay === 'NIGHT' || scene.timeOfDay === 'EVENING';
@@ -62,8 +63,47 @@ export default function Breakdown({ projectId, project }: { projectId: string, p
     return 'bg-white hover:bg-slate-50 border-l-4 border-l-slate-200';
   };
 
+  const moveScene = async (sceneId: string, direction: -1 | 1) => {
+    const currentIndex = scenes.findIndex((scene) => scene.id === sceneId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= scenes.length) return;
+
+    const currentScene = scenes[currentIndex];
+    const nextScene = scenes[nextIndex];
+    setScenes((prev) => {
+      const next = [...prev];
+      [next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]];
+      return next.map((scene, index) => ({ ...scene, sceneNumber: index + 1 }));
+    });
+
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'projects', projectId, 'scenes', currentScene.id), { sceneNumber: nextScene.sceneNumber });
+      batch.update(doc(db, 'projects', projectId, 'scenes', nextScene.id), { sceneNumber: currentScene.sceneNumber });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `projects/${projectId}/scenes`);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", scriptForReview && "xl:grid xl:grid-cols-[minmax(280px,0.75fr)_minmax(0,1.35fr)] xl:gap-6 xl:space-y-0")}>
+      {scriptForReview && (
+        <Card className="border-none shadow-sm overflow-hidden rounded-[2rem] xl:sticky xl:top-4 xl:self-start">
+          <CardHeader className="bg-slate-950 text-white border-b border-slate-800 p-6">
+            <CardTitle className="text-xl font-display font-black tracking-tighter flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Source Script
+            </CardTitle>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Side-by-side extraction review</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <pre className="max-h-[72vh] overflow-auto whitespace-pre-wrap bg-slate-950 p-6 text-xs leading-relaxed text-slate-200 font-mono">
+              {scriptForReview}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
       <Card className="border-none shadow-sm overflow-hidden rounded-[2rem]">
         <CardHeader className="bg-white border-b border-slate-100 flex flex-row items-center justify-between p-8">
           <div className="space-y-1">
@@ -97,12 +137,13 @@ export default function Breakdown({ projectId, project }: { projectId: string, p
                 <TableHead className="h-12 text-[10px] font-black uppercase tracking-widest">Location</TableHead>
                 <TableHead className="h-12 text-[10px] font-black uppercase tracking-widest">Cast & Resources</TableHead>
                 <TableHead className="h-12 text-[10px] font-black uppercase tracking-widest pr-8">Key Elements</TableHead>
+                <TableHead className="w-20 h-12 text-[10px] font-black uppercase tracking-widest pr-8 text-right">Move</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {displayScenes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-20 bg-slate-50/50">
+                  <TableCell colSpan={7} className="text-center py-20 bg-slate-50/50">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-2xl bg-white border shadow-sm flex items-center justify-center text-slate-300">
                         <Wand2 className="w-6 h-6" />
@@ -163,6 +204,28 @@ export default function Breakdown({ projectId, project }: { projectId: string, p
                         {scene.sfx?.length > 0 && <Badge className="bg-orange-50 text-orange-600 border-orange-100 text-[9px] font-black uppercase rounded-lg">SFX</Badge>}
                         {scene.vfx?.length > 0 && <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-black uppercase rounded-lg">VFX</Badge>}
                         {scene.picVeh?.length > 0 && <Badge className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-black uppercase rounded-lg">Vehicles</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="pr-8">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={scenes.findIndex((s) => s.id === scene.id) === 0}
+                          onClick={() => moveScene(scene.id, -1)}
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={scenes.findIndex((s) => s.id === scene.id) === scenes.length - 1}
+                          onClick={() => moveScene(scene.id, 1)}
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

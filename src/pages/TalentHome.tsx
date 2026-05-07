@@ -171,6 +171,82 @@ export default function CrewHome() {
     await saveAvailability(updated);
   };
 
+  const escapeCalendarText = (value: string) =>
+    value.replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+
+  const downloadAvailabilityCalendar = () => {
+    const entries = Object.entries(availability) as [string, { off: boolean; slots: string[] }][];
+    if (entries.length === 0) {
+      toast.info('Block dates or add availability slots before exporting your calendar.');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const name = profile?.displayName || myContact?.name || user?.email || 'Curbily Crew';
+    const events = entries.flatMap(([date, value]) => {
+      const dateKey = date.replace(/-/g, '');
+      const eventsForDay: string[] = [];
+
+      if (value.off) {
+        const end = new Date(`${date}T00:00:00`);
+        end.setDate(end.getDate() + 1);
+        eventsForDay.push([
+          'BEGIN:VEVENT',
+          `UID:curbily-blocked-${date}-${user?.uid || 'crew'}@curbily`,
+          `DTSTAMP:${timestamp}`,
+          `DTSTART;VALUE=DATE:${dateKey}`,
+          `DTEND;VALUE=DATE:${getDayKey(end).replace(/-/g, '')}`,
+          'SUMMARY:Curbily - Unavailable',
+          'TRANSP:OPAQUE',
+          'END:VEVENT',
+        ].join('\r\n'));
+      }
+
+      (value.slots || []).forEach((slot) => {
+        const start = new Date(`${date}T${slot}:00`);
+        const end = new Date(start);
+        end.setHours(end.getHours() + 1);
+        const formatDateTime = (eventDate: Date) =>
+          eventDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+        eventsForDay.push([
+          'BEGIN:VEVENT',
+          `UID:curbily-available-${date}-${slot}-${user?.uid || 'crew'}@curbily`,
+          `DTSTAMP:${timestamp}`,
+          `DTSTART:${formatDateTime(start)}`,
+          `DTEND:${formatDateTime(end)}`,
+          'SUMMARY:Curbily - Available Window',
+          'TRANSP:TRANSPARENT',
+          'END:VEVENT',
+        ].join('\r\n'));
+      });
+
+      return eventsForDay;
+    });
+
+    const calendar = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Curbily//Crew Availability//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      `X-WR-CALNAME:${escapeCalendarText(`${name} Availability`)}`,
+      ...events,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob = new Blob([calendar], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'curbily-availability.ics';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Calendar file downloaded. Import it into your external calendar.');
+  };
+
   const nextMonth = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   };
@@ -600,8 +676,8 @@ export default function CrewHome() {
                              <Globe className="w-5 h-5 text-blue-400" />
                           </div>
                           <h4 className="text-sm font-black uppercase tracking-tighter">Global Calendar Integration</h4>
-                          <p className="text-[10px] font-medium opacity-60 leading-relaxed">Connect your external calendars to automatically protect your personal time from work requests.</p>
-                          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-xl text-[10px] font-black uppercase tracking-widest" onClick={() => toast.info("OAuth sync coming soon...")}>Sync External Calendar</Button>
+                          <p className="text-[10px] font-medium opacity-60 leading-relaxed">Export blocked dates and available windows into Apple Calendar, Google Calendar, or Outlook.</p>
+                          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-xl text-[10px] font-black uppercase tracking-widest" onClick={downloadAvailabilityCalendar}>Sync External Calendar</Button>
                        </CardContent>
                     </Card>
 

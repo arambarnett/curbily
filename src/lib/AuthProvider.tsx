@@ -150,24 +150,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Store target mode in local storage to be picked up by onAuthStateChanged for new users
     localStorage.setItem('target_view_mode', targetMode);
     
-    try {
-      const provider = new GoogleAuthProvider();
-      // Add custom parameters to prompt account selection
-      provider.setCustomParameters({ prompt: 'select_account' });
+    const provider = new GoogleAuthProvider();
+    // Add custom parameters to prompt account selection
+    provider.setCustomParameters({ prompt: 'select_account' });
 
-      // If in iframe, popup might be blocked. 
-      // We try popup first, but warn if it seems to hang.
+    try {
       await signInWithPopup(auth, provider);
       
       console.log('Sign in successful');
     } catch (error: any) {
       console.error('Sign in error:', error);
-      localStorage.removeItem('target_view_mode'); // Clean up on error
       
-      // If code is auth/popup-blocked, maybe suggest redirect or new tab
+      // If the popup is blocked, redirect is the fallback path.
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-        alert("It looks like the sign-in popup was blocked or closed. If you're using the preview, please try opening the application in a new tab using the 'Open in new tab' button at the top right.");
+        await signInWithRedirect(auth, provider);
       } else {
+        localStorage.removeItem('target_view_mode'); // Clean up on error
         alert(`Failed to sign in: ${error.message}. Please check if you are in a private window or if popups are blocked.`);
       }
     }
