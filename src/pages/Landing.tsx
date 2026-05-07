@@ -31,6 +31,7 @@ export default function Landing() {
           <button onClick={() => navigate('/pricing')} className="text-sm font-medium uppercase tracking-widest hover:opacity-70 transition-opacity">Pricing</button>
           <button onClick={() => document.getElementById('calendly-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-medium uppercase tracking-widest hover:opacity-70 transition-opacity">Book Demo</button>
           <button onClick={() => navigate('/network-info')} className="text-sm font-medium uppercase tracking-widest hover:opacity-70 transition-opacity">Network</button>
+          <button onClick={() => navigate('/influencer-marketplace')} className="text-sm font-medium uppercase tracking-widest hover:opacity-70 transition-opacity">Brands</button>
           <button onClick={() => {
             localStorage.setItem('target_view_mode', 'talent');
             navigate('/login?mode=talent');
@@ -69,6 +70,7 @@ export default function Landing() {
               <div className="flex flex-col gap-6">
                 <button onClick={() => { setIsMenuOpen(false); navigate('/pricing'); }} className="text-2xl font-black uppercase tracking-tighter text-left">Pricing</button>
                 <button onClick={() => { setIsMenuOpen(false); navigate('/network-info'); }} className="text-2xl font-black uppercase tracking-tighter text-left">Network</button>
+                <button onClick={() => { setIsMenuOpen(false); navigate('/influencer-marketplace'); }} className="text-2xl font-black uppercase tracking-tighter text-left">Brands</button>
                 <button onClick={() => { 
                   setIsMenuOpen(false); 
                   localStorage.setItem('target_view_mode', 'talent');

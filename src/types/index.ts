@@ -23,6 +23,8 @@ export interface UserProfile {
   freeProjectLimit?: number;
   tokens?: number;
   onboarded?: boolean;
+  marketplaceRole?: 'brand' | 'manager';
+  companyName?: string;
   createdAt?: string;
 }
 
@@ -334,7 +336,7 @@ export interface Contact {
   email: string;
   phone: string;
   roles: string[];
-  type: ('cast' | 'crew' | 'vendor' | 'producer')[];
+  type: ('cast' | 'crew' | 'vendor' | 'producer' | 'influencer' | 'manager' | 'brand')[];
   rate?: number;
   minRate?: number;
   maxRate?: number;
@@ -370,6 +372,11 @@ export interface Contact {
   website?: string;
   services?: string;
   socials?: { platform: string, url: string }[];
+  creatorChannels?: CreatorChannel[];
+  managerId?: string;
+  managerName?: string;
+  contentGenre?: string;
+  minimumEngagementRate?: number;
   isSAG?: boolean;
   isMinor?: boolean;
   age?: number;
@@ -384,6 +391,71 @@ export interface Contact {
   inviteCode?: string;
   inviteSentAt?: any;
   claimed?: boolean;
+}
+
+export interface CreatorChannel {
+  platform: 'Instagram' | 'TikTok' | 'YouTube' | 'Twitch' | 'Facebook' | 'X' | 'Other';
+  handle: string;
+  url?: string;
+  followers?: number;
+  genre?: string;
+  averageViews?: number;
+  engagementRate?: number;
+  lastSyncedAt?: any;
+}
+
+export interface InfluencerRoster {
+  id: string;
+  managerId: string;
+  managerEmail?: string;
+  managerName: string;
+  rosterName: string;
+  influencers: Array<{
+    id?: string;
+    name: string;
+    handle?: string;
+    platform?: string;
+    channels?: CreatorChannel[];
+    niche?: string;
+    contentGenre?: string;
+    followers?: number;
+    rate?: number;
+    minimumRate?: number;
+    location?: string;
+    email?: string;
+  }>;
+  visibility?: 'private' | 'marketplace';
+  status: 'active' | 'draft' | 'archived';
+  createdAt: any;
+}
+
+export interface BrandBrief {
+  id: string;
+  brandId: string;
+  brandEmail?: string;
+  brandName: string;
+  campaignName: string;
+  budget: number;
+  goals?: string;
+  influencerType?: string;
+  platforms?: string;
+  targetAudience?: string;
+  deliverables?: string;
+  status: 'intake' | 'open' | 'shortlisted' | 'booked' | 'archived';
+  visibility?: 'private' | 'marketplace';
+  createdAt: any;
+}
+
+export interface CreatorShortlist {
+  id: string;
+  briefId: string;
+  brandId: string;
+  managerId: string;
+  managerName: string;
+  creators: InfluencerRoster['influencers'];
+  selectedCreatorIds?: string[];
+  status: 'sent' | 'brand_review' | 'selected' | 'declined';
+  createdAt: any;
 }
 
 export interface BudgetItem {

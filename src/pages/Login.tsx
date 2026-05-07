@@ -19,20 +19,28 @@ export default function Login() {
   const handlingRef = React.useRef(false);
   
   React.useEffect(() => {
-    if (user && !authLoading && profile && !handlingRef.current) {
+    if (user && !authLoading && !handlingRef.current) {
       const handleExistingUser = async () => {
         handlingRef.current = true;
         
         // If the intended mode differs from the current profile mode
-        if (profile.viewMode !== mode) {
+        if (profile && profile.viewMode !== mode) {
           await switchViewMode(mode);
           // If switching to producer, ensure they are onboarded for studio
           if (mode === 'producer' && !profile.onboarded) {
             await updateProfile({ onboarded: true });
           }
-        } else if (mode === 'producer' && !profile.onboarded) {
+        } else if (profile && mode === 'producer' && !profile.onboarded) {
           // Ensure studio users are always marked onboarded if they come through studio login
           await updateProfile({ onboarded: true });
+        }
+
+        const pendingMarketplaceRole = localStorage.getItem('pending_marketplace_role') as 'brand' | 'manager' | null;
+        if (pendingMarketplaceRole) {
+          localStorage.removeItem('pending_marketplace_role');
+          await updateProfile({ marketplaceRole: pendingMarketplaceRole, viewMode: 'producer', onboarded: true });
+          navigate(pendingMarketplaceRole === 'brand' ? '/brands' : '/managers', { replace: true });
+          return;
         }
         
         navigate('/', { replace: true });

@@ -42,6 +42,18 @@ import { toast } from 'sonner';
 
 const AGENTS = []; // Removed as it is now in Layout.tsx
 
+type AgentKey = keyof NonNullable<Project['agentStatuses']>;
+
+const AGENT_LABELS: Record<AgentKey, string> = {
+  breakdown: 'Script Breakdown',
+  shotlist: 'Shot List',
+  schedule: 'Schedule',
+  budget: 'Budget',
+  sourcing: 'Sourcing',
+  outreach: 'Outreach',
+  callsheets: 'Call Sheets',
+};
+
 import { ensureApiKey } from '../lib/apiKeyCheck';
 import { callSheet } from '../lib/agents/operations/callSheet';
 import html2pdf from 'html2pdf.js';
@@ -348,6 +360,16 @@ export default function ProjectDetail() {
     } catch (e) {
       console.error(`Failed to update agent status for ${agentName}:`, e);
     }
+  };
+
+  const approveAgent = async (agentName: AgentKey) => {
+    if (!id) return;
+    await updateDoc(doc(db, 'projects', id), {
+      [`agentStatuses.${agentName}.isApproved`]: true,
+      [`agentStatuses.${agentName}.approvedAt`]: serverTimestamp(),
+      [`agentStatuses.${agentName}.approvedBy`]: user?.uid || null,
+    });
+    toast.success(`${AGENT_LABELS[agentName]} approved`);
   };
 
   const handleSyncBudgetFromSourcing = async () => {
@@ -1332,7 +1354,9 @@ export default function ProjectDetail() {
       }
       setScriptText(text);
       setIsScriptImported(true);
+      await saveScriptVersion(text, scriptUrl);
       setIsUpdatingScript(false);
+      toast.success('Script updated from file');
       
       await addDoc(collection(db, `projects/${id}/notifications`), {
         projectId: id,
@@ -1423,7 +1447,9 @@ export default function ProjectDetail() {
       }
       setScriptText(text);
       setIsScriptImported(true);
+      await saveScriptVersion(text, scriptUrl);
       setIsUpdatingScript(false);
+      toast.success('Script updated from dropped file');
     } catch (error) {
       console.error('File extraction failed:', error);
     } finally {
@@ -1475,11 +1501,86 @@ export default function ProjectDetail() {
     }
   })();
 
+  const activeAgentKey = executionSteps.includes(activeTab) ? activeTab as AgentKey : null;
+  const activeAgentStatus = activeAgentKey ? project?.agentStatuses?.[activeAgentKey] : null;
+  const needsActiveAgentApproval = !!activeAgentKey && activeAgentStatus?.status === 'completed' && !activeAgentStatus?.isApproved;
+
   if (loading) return <div className="flex items-center justify-center h-64">Loading project...</div>;
   if (!project) return null;
 
   return (
     <div className="flex gap-6 relative">
+      <Dialog open={isUpdatingScript} onOpenChange={setIsUpdatingScript}>
+        <DialogContent className="rounded-[2rem] border-4 border-black max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-black uppercase tracking-tighter">Update Script</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Replace the project script from pasted text, a PDF/text file, or a shared Google Doc/Sheet.
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs value={uploadMethod} onValueChange={setUploadMethod} className="w-full">
+            <TabsList className="grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+              <TabsTrigger value="paste" className="rounded-lg">Paste Text</TabsTrigger>
+              <TabsTrigger value="file" className="rounded-lg">Upload File</TabsTrigger>
+              <TabsTrigger value="url" className="rounded-lg">Google URL</TabsTrigger>
+            </TabsList>
+            <TabsContent value="paste" className="mt-4">
+              <Textarea
+                value={scriptText}
+                onChange={(e) => setScriptText(e.target.value)}
+                placeholder="Paste the latest script here..."
+                className="min-h-[360px] rounded-2xl border-2 border-slate-200 font-mono text-xs"
+              />
+            </TabsContent>
+            <TabsContent value="file" className="mt-4">
+              <div
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-10 text-center"
+              >
+                <Upload className="mx-auto mb-4 h-10 w-10 text-slate-300" />
+                <p className="text-sm font-black uppercase tracking-widest text-slate-600">Drop a PDF or text file here</p>
+                <p className="mt-2 text-xs text-slate-400">{fileName || 'or choose a file below'}</p>
+                <Input type="file" accept=".pdf,.txt,.text" onChange={handleFileUpload} className="mt-6" />
+              </div>
+            </TabsContent>
+            <TabsContent value="url" className="mt-4 space-y-3">
+              <Input
+                value={scriptUrl}
+                onChange={(e) => setScriptUrl(e.target.value)}
+                placeholder="https://docs.google.com/document/... or https://docs.google.com/spreadsheets/..."
+                className="h-12 rounded-xl border-2 border-slate-200"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isProcessing || !scriptUrl}
+                onClick={scriptUrl.includes('spreadsheets') ? handleGoogleSheetImport : handleGoogleDocImport}
+                className="w-full rounded-xl h-11 font-black uppercase tracking-widest text-[10px]"
+              >
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Import From URL
+              </Button>
+            </TabsContent>
+          </Tabs>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setIsUpdatingScript(false)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              disabled={isProcessing || !scriptText.trim()}
+              onClick={async () => {
+                await handleSaveScript();
+                setIsUpdatingScript(false);
+                toast.success('Script updated');
+              }}
+              className="rounded-xl bg-black text-white hover:bg-slate-800 font-black uppercase tracking-widest text-[10px]"
+            >
+              Save Script
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Main Content Area */}
       <div id="project-detail-content" className="flex-1 flex flex-col min-w-0">
@@ -1601,6 +1702,30 @@ export default function ProjectDetail() {
                   Back to Dashboard
                 </Button>
               </div>
+            )}
+            {needsActiveAgentApproval && activeAgentKey && (
+              <Card className="mb-6 bg-amber-50 border-[3px] border-amber-400 rounded-3xl shadow-[6px_6px_0px_0px_rgba(251,191,36,0.2)] overflow-hidden">
+                <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-4 text-amber-900">
+                    <div className="w-12 h-12 bg-amber-200 rounded-2xl flex items-center justify-center border-2 border-amber-300">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="font-black uppercase tracking-tighter text-xl">Approval Required</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+                        Review and approve the {AGENT_LABELS[activeAgentKey]} agent from this page.
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => approveAgent(activeAgentKey)}
+                    className="bg-black text-white hover:bg-slate-800 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-xl transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Approve {AGENT_LABELS[activeAgentKey]}
+                  </Button>
+                </CardContent>
+              </Card>
             )}
             {activeTab === 'dashboard' && (
               <div className="flex flex-col max-w-4xl mx-auto w-full">
@@ -2229,33 +2354,7 @@ export default function ProjectDetail() {
             )}
             {activeTab === 'breakdown' && (
               <div className="flex flex-col gap-4">
-                {project?.agentStatuses?.breakdown?.status === 'completed' && !project?.agentStatuses?.breakdown?.isApproved && (
-                  <Card className="bg-amber-50 border-[3px] border-amber-400 rounded-3xl shadow-[6px_6px_0px_0px_rgba(251,191,36,0.2)] overflow-hidden">
-                    <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                      <div className="flex items-center gap-4 text-amber-900">
-                        <div className="w-12 h-12 bg-amber-200 rounded-2xl flex items-center justify-center border-2 border-amber-300">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="font-black uppercase tracking-tighter text-xl">Approval Required</p>
-                          <p className="text-[10px] font-bold uppercase tracking-wider opacity-70">Review extraction to unlock sequence</p>
-                        </div>
-                      </div>
-                      <Button 
-                        onClick={async () => {
-                          if (!id) return;
-                          await updateDoc(doc(db, 'projects', id), {
-                            'agentStatuses.breakdown.isApproved': true
-                          });
-                        }}
-                        className="bg-black text-white hover:bg-slate-800 font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-xl shadow-xl transition-all active:scale-95"
-                      >
-                        Approve Master Breakdown
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-                <Breakdown projectId={project.id} project={project} />
+                <Breakdown projectId={project.id} project={project} scriptText={scriptText} />
               </div>
             )}
             {activeTab === 'shotlist' && (

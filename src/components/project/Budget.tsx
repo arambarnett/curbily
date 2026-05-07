@@ -649,6 +649,7 @@ export default function Budget({ projectId, project, onGenerate, isGenerating: i
         amount,
         projectId,
         ownerId: profile?.uid,
+        sortOrder: items.length,
         status: 'manual',
         createdAt: serverTimestamp()
       });
@@ -686,6 +687,12 @@ export default function Budget({ projectId, project, onGenerate, isGenerating: i
           return sortConfig.direction === 'asc' ? 1 : -1;
         }
         return 0;
+      });
+    } else {
+      sortableItems.sort((a, b) => {
+        const aOrder = typeof (a as any).sortOrder === 'number' ? (a as any).sortOrder : currentData.indexOf(a);
+        const bOrder = typeof (b as any).sortOrder === 'number' ? (b as any).sortOrder : currentData.indexOf(b);
+        return aOrder - bOrder;
       });
     }
     return sortableItems;
@@ -757,6 +764,27 @@ export default function Budget({ projectId, project, onGenerate, isGenerating: i
     });
     return groups;
   }, [filteredItems, shouldGroup]);
+
+  const moveBudgetItem = async (itemId: string, direction: -1 | 1) => {
+    const movableItems = filteredItems.filter((item) => !(item as any).isCurbilyUpsell);
+    const currentIndex = movableItems.findIndex((item) => item.id === itemId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= movableItems.length) return;
+
+    const reordered = [...movableItems];
+    [reordered[currentIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[currentIndex]];
+    setSortConfig(null);
+
+    try {
+      const batch = writeBatch(db);
+      reordered.forEach((item, index) => {
+        batch.update(doc(db, `projects/${projectId}/budget`, item.id), { sortOrder: index });
+      });
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `projects/${projectId}/budget reorder`);
+    }
+  };
 
   if (loading) return <div>Loading budget...</div>;
 
@@ -1869,7 +1897,7 @@ export default function Budget({ projectId, project, onGenerate, isGenerating: i
                     </div>
                   </TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[96px] text-right">Move</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2048,6 +2076,34 @@ export default function Budget({ projectId, project, onGenerate, isGenerating: i
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <div className="flex gap-1 items-center">
+                            {!(item as any).isCurbilyUpsell && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-slate-900"
+                                  disabled={filteredItems.filter((i) => !(i as any).isCurbilyUpsell).findIndex((i) => i.id === item.id) === 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveBudgetItem(item.id, -1);
+                                  }}
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-slate-900"
+                                  disabled={filteredItems.filter((i) => !(i as any).isCurbilyUpsell).findIndex((i) => i.id === item.id) === filteredItems.filter((i) => !(i as any).isCurbilyUpsell).length - 1}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveBudgetItem(item.id, 1);
+                                  }}
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
                             {item.history && item.history.length > 0 && (
                               <Dialog>
                                 <DialogTrigger render={<Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-500" />}>

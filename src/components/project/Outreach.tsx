@@ -419,8 +419,13 @@ export default function Outreach({ projectId, project }: { projectId: string, pr
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase text-slate-400">
-                {selectedThread?.status === 'draft' ? 'Draft Email' : 'Thread History'}
+                {selectedThread?.status === 'draft' ? 'Draft Email' : 'Conversation History'}
               </label>
+              {selectedThread?.status !== 'draft' && (
+                <p className="text-[10px] text-slate-500">
+                  This preserves the latest outreach message, response summary, and AI next-step context for this contact.
+                </p>
+              )}
               <Textarea 
                 className="min-h-[200px] font-sans text-sm leading-relaxed"
                 value={selectedThread?.draftEmail || ''}

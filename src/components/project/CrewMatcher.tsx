@@ -339,6 +339,16 @@ export default function CrewMatcher({ projectId }: { projectId: string }) {
     };
   });
 
+  const visibleRecommendations = recommendations.filter((rec) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return rec.role.toLowerCase().includes(term) || rec.matches.some((match: any) =>
+      match.name?.toLowerCase().includes(term) ||
+      match.location?.toLowerCase().includes(term) ||
+      match.roles?.some((role: string) => role.toLowerCase().includes(term))
+    );
+  });
+
   const filteredContacts = contacts.filter(c => {
     // Hide vendors from global network as requested
     if (c.roles?.some(r => r.toLowerCase().includes('vendor'))) return false;
@@ -439,8 +449,25 @@ export default function CrewMatcher({ projectId }: { projectId: string }) {
         </div>
 
         <TabsContent value="recommendations">
+          <div className="mb-4 flex flex-col md:flex-row gap-3">
+            <div className="relative group flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Input 
+                placeholder="Search production staffing by role, name, skill, or location..." 
+                className="pl-10 h-11 bg-white border-slate-200 rounded-xl"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            {searchTerm && (
+              <Button variant="outline" className="h-11 rounded-xl gap-2" onClick={() => setSearchTerm('')}>
+                <X className="w-4 h-4" />
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-            {recommendations.map((rec) => {
+            {visibleRecommendations.map((rec) => {
               const isNotNeeded = project?.description?.toLowerCase().includes(`no ${rec.role.toLowerCase()}`) || 
                                  (rec.role === 'Background Talent' && project?.budgetTier === 'Micro-Budget');
 
@@ -659,7 +686,7 @@ export default function CrewMatcher({ projectId }: { projectId: string }) {
                 <p className="text-xs text-slate-500 mt-1">Connect your existing contacts or upload a spreadsheet to start managing your recurring crew list.</p>
               </div>
               <div className="flex flex-col gap-2">
-                <Button className="w-full gap-2" onClick={handleImportSheet}>
+                <Button className="w-full gap-2" onClick={() => setIsImporting(true)}>
                   <Plus className="w-4 h-4" />
                   Connect Spreadsheets
                 </Button>
@@ -1190,7 +1217,9 @@ export default function CrewMatcher({ projectId }: { projectId: string }) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsImporting(false)}>Cancel</Button>
-            <Button className="bg-blue-600">Start Import</Button>
+            <Button className="bg-blue-600" onClick={() => document.getElementById('sheet-upload')?.click()}>
+              Select CSV
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
