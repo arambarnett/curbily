@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input';
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/AuthProvider';
+import { ensureManagerInviteCode } from '../lib/managerInviteCode';
 
 const parseRosterCsv = (text: string) => {
   const [headerLine, ...lines] = text.split(/\r?\n/).filter(Boolean);
@@ -75,6 +76,7 @@ export default function Managers() {
       status: 'active',
       updatedAt: serverTimestamp(),
     }, { merge: true });
+    await ensureManagerInviteCode(user.uid);
     return true;
   };
 

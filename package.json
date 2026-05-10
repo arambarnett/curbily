@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "migrate:firestore": "tsx scripts/migrate-firestore-database.ts",
+    "migrate:firestore:full": "tsx scripts/migrate-firestore-database.ts --full"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

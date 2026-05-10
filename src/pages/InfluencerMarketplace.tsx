@@ -13,9 +13,10 @@ export default function InfluencerMarketplace() {
       <header className="sticky top-0 z-20 border-b border-black/10 bg-[#f7f6f2]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <button onClick={() => navigate('/landing')} className="text-xl font-black tracking-tighter">Curbily</button>
-          <div className="hidden items-center gap-6 md:flex">
+            <div className="hidden items-center gap-6 md:flex">
             <button onClick={() => navigate('/brands')} className="text-[10px] font-black uppercase tracking-[0.24em] hover:opacity-60">For Brands</button>
             <button onClick={() => navigate('/managers')} className="text-[10px] font-black uppercase tracking-[0.24em] hover:opacity-60">For Managers</button>
+            <button onClick={() => navigate('/influencer-join')} className="text-[10px] font-black uppercase tracking-[0.24em] hover:opacity-60">For Creators</button>
             <Button onClick={() => navigate('/brands')} className="rounded-full bg-black px-6 text-white hover:bg-slate-800">
               Create Account
             </Button>
@@ -86,7 +87,6 @@ export default function InfluencerMarketplace() {
                     [BadgeDollarSign, 'Budget-first briefs replace subject-line rate emails'],
                     [Users, 'Manager rosters keep real people in the loop'],
                     [CheckCircle2, 'Brands shortlist exactly three creators'],
-                    [Sparkles, 'Future AI matching ranks creators by fit and minimums'],
                   ].map(([Icon, text]) => (
                     <div key={text as string} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                       <div className="flex items-center gap-3">
@@ -103,7 +103,7 @@ export default function InfluencerMarketplace() {
         </section>
 
         <section className="border-y border-black/10 bg-white px-6 py-20">
-          <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-2">
+          <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-3">
             <AudienceCard
               icon={<Briefcase className="h-7 w-7" />}
               title="For Brands"
@@ -117,6 +117,13 @@ export default function InfluencerMarketplace() {
               body="Create an account, upload creator rosters with channels, genres, follower counts, and minimum rates, then submit ten-name shortlists."
               cta="Start as a Manager"
               onClick={() => navigate('/managers')}
+            />
+            <AudienceCard
+              icon={<Sparkles className="h-7 w-7" />}
+              title="For Creators"
+              body="Have a code from your manager? Link your Google account in under a minute—no full production profile required."
+              cta="Join with manager code"
+              onClick={() => navigate('/influencer-join')}
             />
           </div>
         </section>

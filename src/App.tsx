@@ -31,6 +31,7 @@ const InfluencerMarketplace = React.lazy(() => import('./pages/InfluencerMarketp
 const MarketplaceDashboard = React.lazy(() => import('./pages/MarketplaceDashboard'));
 const Brands = React.lazy(() => import('./pages/Brands'));
 const Managers = React.lazy(() => import('./pages/Managers'));
+const InfluencerJoin = React.lazy(() => import('./pages/InfluencerJoin'));
 
 function PageLoader() {
   return (
@@ -66,7 +67,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to="/landing" />;
   
   // If user is logged in but not onboarded, redirect to appropriate onboarding
-  if (profile && !profile.onboarded && !['/join', '/studio-join'].includes(location.pathname)) {
+  if (profile && !profile.onboarded && !['/join', '/studio-join', '/influencer-join'].includes(location.pathname)) {
     if (profile.viewMode === 'producer') {
       return <Navigate to="/studio-join" />;
     }
@@ -117,6 +118,7 @@ export default function App() {
             <Route path="/influencer-marketplace/dashboard" element={<MarketplaceDashboard />} />
             <Route path="/brands" element={<Brands />} />
             <Route path="/managers" element={<Managers />} />
+            <Route path="/influencer-join" element={<InfluencerJoin />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>

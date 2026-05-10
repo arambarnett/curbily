@@ -3,7 +3,7 @@
   "appId": "1:769958881232:web:f4eabeff1f1e6d60c03bd5",
   "apiKey": "AIzaSyBYFnptX2rfZNHYTEVCQjF-Dh9diKcX4gA",
   "authDomain": "curbily.com",
-  "firestoreDatabaseId": "ai-studio-5fc5ad64-7205-4eb5-9d55-8e67aab2e08a",
+  "firestoreDatabaseId": "(default)",
   "storageBucket": "video-editor-441419.firebasestorage.app",
   "messagingSenderId": "769958881232",
   "measurementId": ""

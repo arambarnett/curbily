@@ -5,6 +5,9 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Film, User, Briefcase, X, Zap } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { toast } from 'sonner';
+import { db } from '../lib/firebase';
 
 export default function Login() {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -22,6 +25,44 @@ export default function Login() {
     if (user && !authLoading && !handlingRef.current) {
       const handleExistingUser = async () => {
         handlingRef.current = true;
+
+        const pendingInviteEarly = sessionStorage.getItem('pending_manager_invite_code')?.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (pendingInviteEarly && pendingInviteEarly.length >= 6) {
+          sessionStorage.removeItem('pending_manager_invite_code');
+          const snap = await getDoc(doc(db, 'managerInviteCodes', pendingInviteEarly));
+          if (!snap.exists()) {
+            toast.error('Invalid manager invite code');
+            navigate('/influencer-join', { replace: true });
+            return;
+          }
+          const managerId = snap.data()?.managerId as string | undefined;
+          if (managerId) {
+            await updateProfile({
+              marketplaceRole: 'influencer',
+              linkedManagerId: managerId,
+              viewMode: 'talent',
+              onboarded: true,
+            });
+            await setDoc(
+              doc(db, 'contacts', user.uid),
+              {
+                uid: user.uid,
+                name: profile?.displayName || user.displayName || '',
+                email: profile?.email || user.email || '',
+                linkedManagerId: managerId,
+                type: ['influencer'],
+                roles: [],
+                isGlobal: false,
+                ownerId: user.uid,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+            toast.success('Linked to your manager');
+          }
+          navigate('/', { replace: true });
+          return;
+        }
         
         // If the intended mode differs from the current profile mode
         if (profile && profile.viewMode !== mode) {
@@ -42,7 +83,7 @@ export default function Login() {
           navigate(pendingMarketplaceRole === 'brand' ? '/brands' : '/managers', { replace: true });
           return;
         }
-        
+
         navigate('/', { replace: true });
       };
       

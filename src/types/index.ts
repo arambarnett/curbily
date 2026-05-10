@@ -23,7 +23,9 @@ export interface UserProfile {
   freeProjectLimit?: number;
   tokens?: number;
   onboarded?: boolean;
-  marketplaceRole?: 'brand' | 'manager';
+  marketplaceRole?: 'brand' | 'manager' | 'influencer';
+  /** Set when an influencer joins via a manager invite code */
+  linkedManagerId?: string;
   companyName?: string;
   createdAt?: string;
 }
