@@ -7,13 +7,14 @@ import { Button } from '../ui/button';
 import { CreditCard, Shield, Zap, CheckCircle2, AlertTriangle, Plus, Trash2, Loader2, X, DollarSign, Users, Clock, ShieldCheck, BarChart3 } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 
-const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
+const stripePk = String((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_STRIPE_PUBLISHABLE_KEY ?? '').trim();
+const stripePromise: Promise<Stripe | null> | null = stripePk ? loadStripe(stripePk) : null;
 
 function AddCardForm({ projectId, onComplete, onCancel }: { projectId: string, onComplete: () => void, onCancel: () => void }) {
   const stripe = useStripe();
@@ -70,18 +71,24 @@ function AddCardForm({ projectId, onComplete, onCancel }: { projectId: string, o
         </Button>
       </div>
       <div className="p-3 border rounded-md bg-slate-50">
-        <Elements stripe={stripePromise}>
-          <CardElement options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#424770',
-                '::placeholder': { color: '#aab7c4' },
-              },
-              invalid: { color: '#9e2146' },
-            },
-          }} />
-        </Elements>
+        {stripePromise ? (
+          <Elements stripe={stripePromise}>
+            <CardElement
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#424770',
+                    '::placeholder': { color: '#aab7c4' },
+                  },
+                  invalid: { color: '#9e2146' },
+                },
+              }}
+            />
+          </Elements>
+        ) : (
+          <p className="text-xs text-slate-600">Set VITE_STRIPE_PUBLISHABLE_KEY to add cards.</p>
+        )}
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex gap-2">

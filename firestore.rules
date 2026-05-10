@@ -218,7 +218,8 @@ service cloud.firestore {
         allow write: if isProjectOwner(projectId) || isAdmin();
       }
       match /payment_methods/{paymentMethodId} {
-        allow read, write: if isProjectOwner(projectId) || isAdmin();
+        allow get, list: if isProjectViewer(projectId) || isAdmin();
+        allow create, update, delete: if isProjectOwner(projectId) || isAdmin();
       }
     }
 

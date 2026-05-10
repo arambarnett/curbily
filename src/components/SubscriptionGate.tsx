@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthProvider';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
-import { Shield, Check, Zap, Lock } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
+import { Check, Zap, Lock } from 'lucide-react';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import { toast } from 'sonner';
 
-const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+const stripePk = String((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_STRIPE_PUBLISHABLE_KEY ?? '').trim();
+/** Never call loadStripe with an empty string — Stripe throws IntegrationError. */
+const stripePromise: Promise<Stripe | null> = stripePk ? loadStripe(stripePk) : Promise.resolve(null);
 const ENABLE_PAYMENTS = (import.meta as any).env.VITE_ENABLE_PAYMENTS === 'true';
 const ADMIN_EMAILS = ['aram.barnett@gmail.com', 'jonanthonybarnett@gmail.com'];
 
@@ -51,13 +54,15 @@ export default function SubscriptionGate({ children, featureName = "this feature
       
       const session = await response.json();
       const stripe = await stripePromise;
-      
-      if (stripe) {
-        const { error } = await (stripe as any).redirectToCheckout({
-          sessionId: session.id,
-        });
-        if (error) console.error(error);
+
+      if (!stripe) {
+        toast.error('Stripe is not configured (missing VITE_STRIPE_PUBLISHABLE_KEY).');
+        return;
       }
+      const { error } = await (stripe as unknown as { redirectToCheckout: (o: { sessionId: string }) => Promise<{ error?: { message: string } }> }).redirectToCheckout({
+        sessionId: session.id,
+      });
+      if (error) console.error(error);
     } catch (error) {
       console.error('Subscription error:', error);
     } finally {
