@@ -350,15 +350,16 @@ export default function CrewMatcher({ projectId }: { projectId: string }) {
   });
 
   const filteredContacts = contacts.filter(c => {
+    const roles = Array.isArray(c.roles) ? c.roles : [];
     // Hide vendors from global network as requested
-    if (c.roles?.some(r => r.toLowerCase().includes('vendor'))) return false;
+    if (roles.some(r => r.toLowerCase().includes('vendor'))) return false;
 
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesLocation = !locationSearch || c.location.toLowerCase().includes(locationSearch.toLowerCase());
-    const matchesRole = roleFilter === 'All' || c.roles.some(r => r === roleFilter);
+    const matchesSearch = (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesLocation = !locationSearch || (c.location || '').toLowerCase().includes(locationSearch.toLowerCase());
+    const matchesRole = roleFilter === 'All' || roles.some(r => r === roleFilter);
 
     return matchesSearch && matchesLocation && matchesRole;
   });

@@ -37,18 +37,23 @@ export default function PersonnelAssignment({
     .trim();
 
   const filteredContacts = contacts.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
+    const roles = Array.isArray(c.roles) ? c.roles : [];
+    const matchesSearch =
+      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesSearch;
   });
 
-  const recommendations = filteredContacts.filter(c => 
-    c.roles.some(r => 
-      r.toLowerCase().includes(targetRole) || 
-      targetRole.includes(r.toLowerCase())
-    )
-  ).sort((a, b) => (b.reliability || 0) - (a.reliability || 0));
+  const recommendations = filteredContacts
+    .filter(c => {
+      const roles = Array.isArray(c.roles) ? c.roles : [];
+      return roles.some(
+        r =>
+          r.toLowerCase().includes(targetRole) || targetRole.includes(r.toLowerCase())
+      );
+    })
+    .sort((a, b) => (b.reliability || 0) - (a.reliability || 0));
 
   const others = filteredContacts.filter(c => !recommendations.find(r => r.id === c.id));
 
