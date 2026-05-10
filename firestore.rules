@@ -201,13 +201,17 @@ service cloud.firestore {
         allow write: if isProjectOwner(projectId) || isAdmin();
       }
       match /notifications/{notificationId} {
-        allow read, write: if isProjectOwner(projectId) || isAdmin();
+        // Viewers can read the feed; only owners/editors (or admins) can post or change notifications.
+        allow get, list: if isProjectViewer(projectId) || isAdmin();
+        allow create, update, delete: if isProjectOwner(projectId) || isAdmin();
       }
       match /travel/{travelId} {
-        allow read, write: if isProjectOwner(projectId) || isAdmin();
+        allow get, list: if isProjectViewer(projectId) || isAdmin();
+        allow create, update, delete: if isProjectOwner(projectId) || isAdmin();
       }
       match /catering/{cateringId} {
-        allow read, write: if isProjectOwner(projectId) || isAdmin();
+        allow get, list: if isProjectViewer(projectId) || isAdmin();
+        allow create, update, delete: if isProjectOwner(projectId) || isAdmin();
       }
       match /call_sheets/{callSheetId} {
         allow read: if isProjectViewer(projectId) || isAdmin();
