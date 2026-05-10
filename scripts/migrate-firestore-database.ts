@@ -4,6 +4,19 @@
  * DEFAULT: copies ONLY the root `users` collection (Firestore profile docs —
  * one document per UID). No subcollections. Use --full later for everything else.
  *
+ * --- Shallow presets (npm scripts in package.json) ---
+ * Run DRY first (no MIGRATE_CONFIRM), then one EXEC at a time to stay under quota:
+ *   npm run migrate:firestore:shallow:dry:users
+ *   MIGRATE_CONFIRM=1 npm run migrate:firestore:shallow:exec:users
+ * (repeat for contacts, outreachThreads, rates — see package.json migrate:firestore:shallow:*)
+ *
+ * --- unionRates / canonicalRates / dim* vs JSON in repo ---
+ * Budget and `unionRateService` / `canonicalRateService` READ these collections from
+ * Firestore at runtime (`getDocs(collection(db, 'unionRates'))`, etc.). TypeScript
+ * seeds under `src/lib/rateSeeds.ts` are used by `seedInitialRates` / `seedCanonicalRates`
+ * to WRITE into Firestore — they are NOT merged into live reads if the DB is empty.
+ * If prod-db-v3 lacks those collections, run the shallow rates pass (or seed) after migrate.
+ *
  * Prerequisites:
  * - Application Default Credentials OR GOOGLE_APPLICATION_CREDENTIALS pointing at a
  *   service account that has read on the source DB and write on the target DB.
