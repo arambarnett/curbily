@@ -88,14 +88,6 @@ service cloud.firestore {
         );
     }
 
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
     function userClaimedCreatorProfileId() {
       let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
       return exists(userPath)
