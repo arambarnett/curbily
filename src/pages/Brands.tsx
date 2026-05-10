@@ -24,6 +24,14 @@ export default function Brands() {
     platforms: '',
     targetAudience: '',
     deliverables: '',
+    influencerCount: '3',
+    minFollowers: '',
+    categoriesInput: '',
+    subcategoriesInput: '',
+    timelineStart: '',
+    timelineEnd: '',
+    backupSlots: '0',
+    visibilityState: 'open' as 'open' | 'draft',
   });
 
   const createBrandAccount = async () => {
@@ -59,12 +67,36 @@ export default function Brands() {
     setSavingBrief(true);
     try {
       await createBrandAccount();
+      const categories = brandBrief.categoriesInput
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const subcategories = brandBrief.subcategoriesInput
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const influencerCount = Math.min(99, Math.max(1, Number(brandBrief.influencerCount) || 3));
+      const backupSlots = Math.min(99, Math.max(0, Number(brandBrief.backupSlots) || 0));
+      const minFollowers = brandBrief.minFollowers === '' ? undefined : Math.max(0, Number(brandBrief.minFollowers) || 0);
       await addDoc(collection(db, 'brandBriefs'), {
-        ...brandBrief,
+        brandName: brandBrief.brandName,
+        campaignName: brandBrief.campaignName,
         budget: Number(brandBrief.budget),
+        goals: brandBrief.goals,
+        influencerType: brandBrief.influencerType,
+        platforms: brandBrief.platforms,
+        targetAudience: brandBrief.targetAudience,
+        deliverables: brandBrief.deliverables,
+        influencerCount,
+        minFollowers,
+        categories,
+        subcategories,
+        timelineStart: brandBrief.timelineStart || undefined,
+        timelineEnd: brandBrief.timelineEnd || undefined,
+        backupSlots,
         brandId: user.uid,
         brandEmail: user.email || '',
-        status: 'intake',
+        status: brandBrief.visibilityState === 'draft' ? 'draft' : 'open',
         visibility: 'marketplace',
         pricingPlan: 'brand_access_199',
         billingEnabled: false,
@@ -139,6 +171,31 @@ export default function Brands() {
             <Input placeholder="Target audience" value={brandBrief.targetAudience} onChange={(event) => setBrandBrief({ ...brandBrief, targetAudience: event.target.value })} />
             <Textarea placeholder="Campaign goals" value={brandBrief.goals} onChange={(event) => setBrandBrief({ ...brandBrief, goals: event.target.value })} />
             <Textarea placeholder="Deliverables, usage rights, timing, must-haves" value={brandBrief.deliverables} onChange={(event) => setBrandBrief({ ...brandBrief, deliverables: event.target.value })} />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input type="number" placeholder="Creator slots (#)" value={brandBrief.influencerCount} onChange={(event) => setBrandBrief({ ...brandBrief, influencerCount: event.target.value })} />
+              <Input type="number" placeholder="Minimum followers / subs" value={brandBrief.minFollowers} onChange={(event) => setBrandBrief({ ...brandBrief, minFollowers: event.target.value })} />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input placeholder="Categories — comma-separated" value={brandBrief.categoriesInput} onChange={(event) => setBrandBrief({ ...brandBrief, categoriesInput: event.target.value })} />
+              <Input placeholder="Subcategories — comma-separated" value={brandBrief.subcategoriesInput} onChange={(event) => setBrandBrief({ ...brandBrief, subcategoriesInput: event.target.value })} />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input type="date" value={brandBrief.timelineStart} onChange={(event) => setBrandBrief({ ...brandBrief, timelineStart: event.target.value })} />
+              <Input type="date" value={brandBrief.timelineEnd} onChange={(event) => setBrandBrief({ ...brandBrief, timelineEnd: event.target.value })} />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4 items-center">
+              <Input type="number" placeholder="Backup roster slots (#)" value={brandBrief.backupSlots} onChange={(event) => setBrandBrief({ ...brandBrief, backupSlots: event.target.value })} />
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-bold"
+                value={brandBrief.visibilityState}
+                onChange={(event) =>
+                  setBrandBrief({ ...brandBrief, visibilityState: event.target.value === 'draft' ? 'draft' : 'open' })
+                }
+              >
+                <option value="open">Publish open — managers can respond</option>
+                <option value="draft">Save as draft</option>
+              </select>
+            </div>
             <Button onClick={saveBrief} disabled={savingBrief} className="h-14 w-full rounded-2xl bg-blue-600 text-[10px] font-black uppercase tracking-[0.22em] text-white hover:bg-blue-700">
               Create Account & Brief
               <ArrowRight className="ml-2 h-4 w-4" />

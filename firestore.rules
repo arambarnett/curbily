@@ -96,6 +96,30 @@ service cloud.firestore {
       return request.resource.data.keys().hasAll(fields);
     }
 
+    function userClaimedCreatorProfileId() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath)
+        ? get(userPath).data.get('claimedCreatorProfileId', '')
+        : '';
+    }
+
+    /** Phase B/C marketplace job rows (`deliverables`). */
+    function marketplaceDeliverableParticipant() {
+      return resource.data.brandId == request.auth.uid ||
+        resource.data.managerId == request.auth.uid ||
+        (
+          resource.data.creatorUid is string &&
+          resource.data.creatorUid != '' &&
+          resource.data.creatorUid == request.auth.uid
+        ) ||
+        (
+          resource.data.creatorProfileId is string &&
+          resource.data.creatorProfileId != '' &&
+          resource.data.creatorProfileId == userClaimedCreatorProfileId()
+        ) ||
+        isAdmin();
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -237,6 +261,42 @@ service cloud.firestore {
       );
     }
 
+    match /creatorClaimCodes/{code} {
+      allow get: if true;
+      allow create: if isAuthenticated() &&
+        request.resource.data.managerId == request.auth.uid &&
+        request.resource.data.code == code &&
+        request.resource.data.profileId != null &&
+        request.resource.data.rosterId != null;
+      allow update, delete: if isAuthenticated() && resource.data.managerId == request.auth.uid;
+    }
+
+    match /creatorProfiles/{profileId} {
+      allow create: if isAuthenticated() &&
+        request.resource.data.managerId == request.auth.uid &&
+        request.resource.data.visibility in ['marketplace', 'private'] &&
+        request.resource.data.status == 'unclaimed';
+      allow read: if isAuthenticated() && (
+        resource.data.managerId == request.auth.uid ||
+        resource.data.claimedByUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isAdmin() ||
+        (
+          isAuthenticated() &&
+          resource.data.managerId == request.auth.uid
+        ) ||
+        (
+          isAuthenticated() &&
+          resource.data.status == 'unclaimed' &&
+          request.resource.data.status == 'claimed' &&
+          request.resource.data.claimedByUid == request.auth.uid &&
+          request.resource.data.managerId == resource.data.managerId &&
+          resource.data.managerId != request.auth.uid
+        );
+      allow delete: if isAuthenticated() && (resource.data.managerId == request.auth.uid || isAdmin());
+    }
+
     match /influencerRosters/{rosterId} {
       allow create: if isAuthenticated() && request.resource.data.managerId == request.auth.uid;
       allow read: if isAuthenticated() && (
@@ -263,19 +323,33 @@ service cloud.firestore {
       );
     }
 
-    // Creator / manager / brand job rows (influencer dashboard, manager assign, brand escrow).
+    // Creator / manager / brand job rows — workflow only (Phase B/C, no escrow in-app).
     match /deliverables/{delId} {
-      allow read: if isAuthenticated() && (
-        resource.data.get('brandId', '') == request.auth.uid ||
-        resource.data.get('managerId', '') == request.auth.uid ||
-        resource.data.get('creatorId', '') == request.auth.uid ||
-        isAdmin()
+      allow read: if isAuthenticated() && marketplaceDeliverableParticipant();
+
+      allow create: if isAuthenticated() && (
+        (
+          request.resource.data.brandId == request.auth.uid ||
+          request.resource.data.managerId == request.auth.uid
+        ) &&
+        request.resource.data.keys().hasAll([
+          'briefId',
+          'shortlistId',
+          'brandId',
+          'managerId',
+          'creatorProfileId',
+          'campaignName',
+          'title',
+          'workflowStatus',
+        ]) &&
+        request.resource.data.workflowStatus == 'invited'
       );
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (
-        resource.data.get('brandId', '') == request.auth.uid ||
-        resource.data.get('managerId', '') == request.auth.uid ||
-        resource.data.get('creatorId', '') == request.auth.uid ||
+
+      allow update: if isAuthenticated() && marketplaceDeliverableParticipant();
+
+      allow delete: if isAuthenticated() && (
+        resource.data.brandId == request.auth.uid ||
+        resource.data.managerId == request.auth.uid ||
         isAdmin()
       );
     }

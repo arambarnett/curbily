@@ -1,5 +1,5 @@
 import React from 'react';
-import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ArrowRight, Sparkles, Upload, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -10,8 +10,9 @@ import { Input } from '../components/ui/input';
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/AuthProvider';
 import { ensureManagerInviteCode } from '../lib/managerInviteCode';
+import { writeRosterInventory, ParsedRosterRow } from '../lib/creatorInviteCode';
 
-const parseRosterCsv = (text: string) => {
+const parseRosterCsv = (text: string): ParsedRosterRow[] => {
   const [headerLine, ...lines] = text.split(/\r?\n/).filter(Boolean);
   if (!headerLine) return [];
 
@@ -26,7 +27,9 @@ const parseRosterCsv = (text: string) => {
     const platform = row.platform || 'Instagram';
     const handle = row.handle || row.username || '';
     const followers = Number(row.followers || row.audience || 0);
-    const genre = row.genre || row.niche || row.category || '';
+    const genre = row.genre || row.niche || row.taxonomy_category || '';
+    const taxonomyCategory = row.brief_category || row.vertical || row.taxonomy_category || '';
+    const taxonomySub = row.brief_subcategory || row.taxonomy_subcategory || '';
     const minimumRate = Number(row.minimum || row.minimum_rate || row.rate || row.fee || 0);
 
     return {
@@ -46,6 +49,8 @@ const parseRosterCsv = (text: string) => {
       followers,
       rate: minimumRate,
       minimumRate,
+      category: taxonomyCategory.trim() || row.category?.trim() || '',
+      subcategory: taxonomySub.trim() || row.subcategory?.trim() || '',
       location: row.location || '',
       email: row.email || '',
     };
@@ -57,7 +62,7 @@ export default function Managers() {
   const { user, updateProfile } = useAuth();
   const [managerName, setManagerName] = React.useState('');
   const [rosterName, setRosterName] = React.useState('');
-  const [rosterRows, setRosterRows] = React.useState<any[]>([]);
+  const [rosterRows, setRosterRows] = React.useState<ParsedRosterRow[]>([]);
   const [savingRoster, setSavingRoster] = React.useState(false);
 
   const createManagerAccount = async () => {
@@ -100,17 +105,19 @@ export default function Managers() {
 
     setSavingRoster(true);
     try {
-      await addDoc(collection(db, 'influencerRosters'), {
-        managerId: user.uid,
-        managerEmail: user.email || '',
-        managerName,
-        rosterName: rosterName || `${managerName || 'Manager'} Roster`,
+      await writeRosterInventory({
+        managerUid: user.uid,
+        rosterPayload: {
+          managerId: user.uid,
+          managerEmail: user.email || '',
+          managerName,
+          rosterName: rosterName || `${managerName || 'Manager'} Roster`,
+          visibility: 'marketplace',
+          status: 'active',
+        },
         influencers: rosterRows,
-        visibility: 'marketplace',
-        createdAt: serverTimestamp(),
-        status: 'active',
       });
-      toast.success('Manager roster saved');
+      toast.success('Manager roster saved with claim codes for each creator');
       navigate('/influencer-marketplace/dashboard');
     } catch (error) {
       console.error(error);
@@ -166,7 +173,7 @@ export default function Managers() {
             <div className="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
               <Upload className="mx-auto mb-3 h-9 w-9 text-slate-300" />
               <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-                CSV columns: name, handle, platform, genre, followers, minimum/rate, location, email
+                Columns: name, handle, platform, genre, followers, minimum/rate, location, email, plus optional taxonomy: category/subcategory or brief_category / brief_subcategory
               </p>
               <Input type="file" accept=".csv" onChange={handleRosterUpload} className="mt-5" />
             </div>

@@ -26,6 +26,12 @@ export interface UserProfile {
   marketplaceRole?: 'brand' | 'manager' | 'influencer';
   /** Set when an influencer joins via a manager invite code */
   linkedManagerId?: string;
+  /** After claiming a roster slot via creator claim code (`creatorClaimCodes`). */
+  claimedCreatorProfileId?: string | null;
+  /** Stripe Connect Express — used for payouts (Phase D). */
+  stripeConnectAccountId?: string | null;
+  stripeConnectDetailsSubmitted?: boolean;
+  stripeConnectPayoutsEnabled?: boolean;
   companyName?: string;
   createdAt?: string;
 }
@@ -406,6 +412,32 @@ export interface CreatorChannel {
   lastSyncedAt?: any;
 }
 
+/** Canonical roster inventory row under a manager; claimable via `creatorClaimCodes`. */
+export interface CreatorProfileDoc {
+  id: string;
+  managerId: string;
+  rosterId: string;
+  rosterRowId?: string;
+  claimCode: string;
+  status: 'unclaimed' | 'claimed' | 'revoked';
+  claimedByUid?: string | null;
+  claimedAt?: any;
+  name: string;
+  email?: string;
+  location?: string;
+  channels?: CreatorChannel[];
+  niche?: string;
+  contentGenre?: string;
+  followers?: number;
+  rate?: number;
+  minimumRate?: number;
+  categories?: string[];
+  subcategories?: string[];
+  visibility?: 'private' | 'marketplace';
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export interface InfluencerRoster {
   id: string;
   managerId: string;
@@ -413,6 +445,8 @@ export interface InfluencerRoster {
   managerName: string;
   rosterName: string;
   influencers: Array<{
+    profileId?: string;
+    claimCode?: string;
     id?: string;
     name: string;
     handle?: string;
@@ -425,6 +459,8 @@ export interface InfluencerRoster {
     minimumRate?: number;
     location?: string;
     email?: string;
+    category?: string;
+    subcategory?: string;
   }>;
   visibility?: 'private' | 'marketplace';
   status: 'active' | 'draft' | 'archived';
@@ -443,7 +479,25 @@ export interface BrandBrief {
   platforms?: string;
   targetAudience?: string;
   deliverables?: string;
-  status: 'intake' | 'open' | 'shortlisted' | 'booked' | 'archived';
+  /** RFP: how many creator slots brands want filled */
+  influencerCount?: number;
+  /** Minimum followers / subscribers threshold (simple Phase A scalar) */
+  minFollowers?: number;
+  /** Top-level taxonomy e.g. beauty, gaming */
+  categories?: string[];
+  subcategories?: string[];
+  timelineStart?: string;
+  timelineEnd?: string;
+  /** Reserved backup slots brands may select later */
+  backupSlots?: number;
+  status:
+    | 'draft'
+    | 'open'
+    | 'closed'
+    | 'intake'
+    | 'shortlisted'
+    | 'booked'
+    | 'archived';
   visibility?: 'private' | 'marketplace';
   createdAt: any;
 }
@@ -454,10 +508,51 @@ export interface CreatorShortlist {
   brandId: string;
   managerId: string;
   managerName: string;
+  /** Source roster doc when shortlist was composed (helps stable IDs for legacy rows). */
+  rosterIdUsed?: string;
   creators: InfluencerRoster['influencers'];
   selectedCreatorIds?: string[];
-  status: 'sent' | 'brand_review' | 'selected' | 'declined';
+  status:
+    | 'sent'
+    | 'brand_review'
+    | 'selected'
+    | 'confirmed'
+    | 'declined';
+  deliverablesReadyAt?: any;
   createdAt: any;
+}
+
+/** Marketplace job workspace after brand confirms picks (Phase B/C). No escrow. */
+export type DeliverableWorkflowStatus =
+  | 'invited'
+  | 'accepted'
+  | 'working'
+  | 'delivered'
+  | 'complete'
+  | 'declined';
+
+export interface MarketplaceDeliverable {
+  id: string;
+  briefId: string;
+  shortlistId: string;
+  brandId: string;
+  brandName?: string;
+  managerId: string;
+  managerName?: string;
+  creatorProfileId: string;
+  creatorUid?: string;
+  creatorDisplayName?: string;
+  campaignName: string;
+  title: string;
+  workflowStatus: DeliverableWorkflowStatus;
+  deliverableSummary?: string;
+  agreementNote?: string;
+  submissionUrl?: string;
+  notesBrand?: string;
+  notesManager?: string;
+  notesCreator?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface BudgetItem {

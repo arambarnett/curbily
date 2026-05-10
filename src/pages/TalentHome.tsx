@@ -37,6 +37,7 @@ import { cn, compressImage } from '../lib/utils';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
+import { CreatorClaimBanner } from '../components/CreatorClaimBanner';
 
 export default function CrewHome() {
   const { user, profile, updateProfile, logout } = useAuth();
@@ -332,6 +333,7 @@ export default function CrewHome() {
 
   return (
     <div className="space-y-6 pb-20">
+      {user ? <CreatorClaimBanner user={user} profile={profile} /> : null}
       {/* High-Level Header / Stats Row */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
         <div className="space-y-4">

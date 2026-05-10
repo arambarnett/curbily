@@ -32,6 +32,7 @@ const MarketplaceDashboard = React.lazy(() => import('./pages/MarketplaceDashboa
 const Brands = React.lazy(() => import('./pages/Brands'));
 const Managers = React.lazy(() => import('./pages/Managers'));
 const InfluencerJoin = React.lazy(() => import('./pages/InfluencerJoin'));
+const MarketplaceWork = React.lazy(() => import('./pages/MarketplaceWork'));
 
 function PageLoader() {
   return (
@@ -119,6 +120,13 @@ export default function App() {
             <Route path="/brands" element={<Brands />} />
             <Route path="/managers" element={<Managers />} />
             <Route path="/influencer-join" element={<InfluencerJoin />} />
+            <Route path="/marketplace/work" element={
+              <ProtectedRoute>
+                <Layout>
+                  <MarketplaceWork />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout>

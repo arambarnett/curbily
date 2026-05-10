@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 import { google } from "googleapis";
 import { initializeApp, getApps } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import cors from "cors";
 
@@ -130,6 +131,113 @@ async function startServer() {
 
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  async function firebaseUidFromBearer(
+    req: express.Request,
+    res: express.Response
+  ): Promise<string | undefined> {
+    const header = req.headers.authorization;
+    if (!header?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing Bearer token" });
+      return undefined;
+    }
+    try {
+      const decoded = await getAuth().verifyIdToken(header.slice(7));
+      return decoded.uid;
+    } catch (e: any) {
+      res.status(401).json({ error: "Invalid token", detail: String(e?.message ?? e) });
+      return undefined;
+    }
+  }
+
+  app.post("/api/stripe/connect/onboarding-link", async (req, res) => {
+    const uid = await firebaseUidFromBearer(req, res);
+    if (!uid) return;
+    try {
+      if (!process.env.STRIPE_SECRET_KEY?.trim()) {
+        return res.status(503).json({ error: "Stripe secret key is not configured on the server" });
+      }
+
+      const fsdb = getFirestore();
+      const userRef = fsdb.collection("users").doc(uid);
+      const snap = await userRef.get();
+      const email = typeof snap.data()?.email === "string" ? snap.data()?.email : undefined;
+      let accountId = snap.data()?.stripeConnectAccountId as string | undefined;
+
+      const country = (process.env.STRIPE_CONNECT_DEFAULT_COUNTRY || "US").trim();
+
+      if (!accountId) {
+        const account = await stripe.accounts.create({
+          type: "express",
+          country,
+          email: email || undefined,
+          capabilities: {
+            transfers: { requested: true },
+            card_payments: { requested: true },
+          },
+          metadata: { firebaseUid: uid },
+        });
+        accountId = account.id;
+        await userRef.set({ stripeConnectAccountId: accountId }, { merge: true });
+      }
+
+      const origin =
+        typeof req.headers.origin === "string" && /^https?:\/\//.test(req.headers.origin)
+          ? req.headers.origin
+          : `http://localhost:${PORT}`;
+      const path =
+        typeof req.body?.returnPath === "string" && req.body.returnPath.startsWith("/")
+          ? req.body.returnPath
+          : "/influencer-marketplace/dashboard";
+
+      const link = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${origin}${path}?stripe_refresh=1`,
+        return_url: `${origin}${path}?stripe_return=1`,
+        type: "account_onboarding",
+      });
+
+      res.json({ url: link.url, accountId });
+    } catch (e: any) {
+      console.error("[stripe connect]", e);
+      res.status(500).json({ error: e?.message || "Stripe Connect onboarding error" });
+    }
+  });
+
+  app.get("/api/stripe/connect/status", async (req, res) => {
+    const uid = await firebaseUidFromBearer(req, res);
+    if (!uid) return;
+    try {
+      const userRef = getFirestore().collection("users").doc(uid);
+      const userSnap = await userRef.get();
+      const accountId = userSnap.data()?.stripeConnectAccountId as string | undefined;
+      if (!accountId) {
+        return res.json({ connected: false, detailsSubmitted: false, payoutsEnabled: false });
+      }
+
+      const account = await stripe.accounts.retrieve(accountId);
+      const detailsSubmitted = !!account.details_submitted;
+      const payoutsEnabled = !!account.payouts_enabled;
+      await userRef.set(
+        {
+          stripeConnectDetailsSubmitted: detailsSubmitted,
+          stripeConnectPayoutsEnabled: payoutsEnabled,
+        },
+        { merge: true }
+      );
+
+      res.json({
+        connected: true,
+        accountId,
+        detailsSubmitted,
+        payoutsEnabled,
+        chargesEnabled: !!account.charges_enabled,
+      });
+    } catch (e: any) {
+      console.error("[stripe connect status]", e);
+      res.status(500).json({ error: e?.message || "Could not load Stripe account" });
+    }
+  });
 
   // Service Worker: must be real JS at every path the client registers (SPA fallback returns HTML → SecurityError).
   const serveServiceWorker = async (res: express.Response) => {

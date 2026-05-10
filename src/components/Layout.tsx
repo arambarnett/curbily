@@ -655,6 +655,20 @@ function SidebarContent({
                 <Briefcase className="w-4 h-4" />
                 Bookings
               </Link>
+              {profile?.marketplaceRole === 'influencer' && (
+                <Link
+                  to="/marketplace/work"
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-black uppercase tracking-tighter text-xs",
+                    location.pathname === '/marketplace/work'
+                      ? 'bg-black text-white'
+                      : 'text-slate-500 hover:text-black hover:bg-slate-50'
+                  )}
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Brand gigs
+                </Link>
+              )}
             </div>
           </div>
         )}
