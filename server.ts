@@ -16,6 +16,64 @@ if (!getApps().length) {
 
 dotenv.config();
 
+const PLACEHOLDER_GEMINI_KEYS = new Set(["MY_GEMINI_API_KEY", "dummy-key"]);
+
+function isUsableGeminiKey(k: string | undefined): k is string {
+  const t = k?.trim();
+  return !!t && t.length > 5 && !PLACEHOLDER_GEMINI_KEYS.has(t);
+}
+
+/** Primary key from standard env vars (same order as before). */
+function resolvePrimaryGeminiApiKey(): string {
+  const candidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.VITE_GOOGLE_API_KEY,
+    process.env.VITE_GEMINI_API_KEY,
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  ];
+  for (const cand of candidates) {
+    if (isUsableGeminiKey(cand)) return cand.trim();
+  }
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key === "GEMINI_API_KEY_BACKUP") continue;
+    if (
+      (key.includes("API_KEY") || key.includes("GEMINI") || key.includes("GOOGLE_API")) &&
+      isUsableGeminiKey(value)
+    ) {
+      console.log(`[Proxy] Found key fallback in env matching patterns: ${key}`);
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+/** Ordered keys: primary first, then optional GEMINI_API_KEY_BACKUP (deduped). */
+function resolveGeminiApiKeyChain(): string[] {
+  const chain: string[] = [];
+  const push = (k: string | undefined) => {
+    if (!isUsableGeminiKey(k)) return;
+    const t = k.trim();
+    if (!chain.includes(t)) chain.push(t);
+  };
+  push(resolvePrimaryGeminiApiKey());
+  push(process.env.GEMINI_API_KEY_BACKUP);
+  return chain;
+}
+
+function shouldRetryGeminiWithBackupKey(status: number, errorBody: string): boolean {
+  if (status === 401 || status === 403 || status === 429) return true;
+  try {
+    const j = JSON.parse(errorBody);
+    const msg = String(j?.error?.message || "").toLowerCase();
+    if (status === 400 && (msg.includes("api key") || msg.includes("invalid"))) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -153,103 +211,106 @@ async function startServer() {
       }
 
       const targetUrl = `https://generativelanguage.googleapis.com/${targetPath}`;
-      
-      // EXHAUSTIVE API KEY DISCOVERY
-      let apiKey = "";
-      
-      const candidates = [
-        process.env.GEMINI_API_KEY,
-        process.env.API_KEY,
-        process.env.GOOGLE_API_KEY,
-        process.env.VITE_GOOGLE_API_KEY,
-        process.env.VITE_GEMINI_API_KEY,
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY
-      ];
 
-      for (const cand of candidates) {
-        if (cand && cand !== "MY_GEMINI_API_KEY" && cand.length > 5) {
-          apiKey = cand;
-          break;
-        }
-      }
+      const keyChain = resolveGeminiApiKeyChain();
+      console.log(
+        `[Proxy] Request: ${req.method} ${targetPath} | Key chain length: ${keyChain.length} | Origin: ${req.headers.origin || "unknown"}`
+      );
 
-      if (!apiKey) {
-        // Broadest fallback - check anything that looks like an API key in env
-        for (const [key, value] of Object.entries(process.env)) {
-          if ((key.includes("API_KEY") || key.includes("GEMINI") || key.includes("GOOGLE_API")) && 
-              value && value !== "MY_GEMINI_API_KEY" && value.length > 5) {
-            apiKey = value;
-            console.log(`[Proxy] Found key fallback in env matching patterns: ${key}`);
-            break;
-          }
-        }
-      }
-
-      console.log(`[Proxy] Request: ${req.method} ${targetPath} | Key Found: ${!!apiKey} | Key Length: ${apiKey ? apiKey.length : 0} | Origin: ${req.headers.origin || 'unknown'}`);
-      
-      if (!apiKey) {
+      if (!keyChain.length) {
         console.error("[Proxy] CRITICAL: No Gemini API Key found in environment variables.");
-        // Log keys available for debugging (WITHOUT VALUES)
         console.log("[Proxy] Available env keys:", Object.keys(process.env).join(", "));
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: "Missing GEMINI_API_KEY on the server.",
-          availableKeys: Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI"))
+          availableKeys: Object.keys(process.env).filter(
+            (k) => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI")
+          ),
         });
       }
 
-      // Reconstruct the URL, preserve all other query parameters
-      const urlWithKey = new URL(targetUrl);
-      urlWithKey.searchParams.append("key", apiKey.trim());
-      for (const [key, value] of Object.entries(req.query)) {
-        if (key !== "key") {
-          urlWithKey.searchParams.append(key, value as string);
-        }
-      }
-
-      const proxyHeaders: Record<string, string> = {
+      const allowedHeaders = ["user-agent", "x-goog-api-client", "x-goog-user-project"];
+      const forwardHeaders: Record<string, string> = {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey.trim()
       };
-      
-      // Forward relevant headers but be selective to avoid 403s from Google
-      const allowedHeaders = ['user-agent', 'x-goog-api-client', 'x-goog-user-project'];
       for (const [key, value] of Object.entries(req.headers)) {
         const lowerKey = key.toLowerCase();
         if (allowedHeaders.includes(lowerKey)) {
-          proxyHeaders[lowerKey] = Array.isArray(value) ? value.join(', ') : value as string;
+          forwardHeaders[lowerKey] = Array.isArray(value) ? value.join(", ") : (value as string);
         }
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+      const requestBody =
+        req.method !== "GET" && req.method !== "HEAD"
+          ? typeof req.body === "string"
+            ? req.body
+            : JSON.stringify(req.body)
+          : undefined;
 
-      const fetchOptions: RequestInit = {
-        method: req.method,
-        headers: proxyHeaders,
-        signal: controller.signal
-      };
+      let response: Response | undefined;
 
-      if (req.method !== "GET" && req.method !== "HEAD") {
-        fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      }
+      for (let keyIndex = 0; keyIndex < keyChain.length; keyIndex++) {
+        const apiKey = keyChain[keyIndex];
 
-      const finalUrl = urlWithKey.toString();
-      let response;
-      try {
-        response = await fetch(finalUrl, fetchOptions);
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      
-      if (!response.ok) {
+        const urlWithKey = new URL(targetUrl);
+        urlWithKey.searchParams.append("key", apiKey);
+        for (const [key, value] of Object.entries(req.query)) {
+          if (key !== "key") {
+            urlWithKey.searchParams.append(key, value as string);
+          }
+        }
+
+        const proxyHeaders: Record<string, string> = {
+          ...forwardHeaders,
+          "x-goog-api-key": apiKey,
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+        const fetchOptions: RequestInit = {
+          method: req.method,
+          headers: proxyHeaders,
+          signal: controller.signal,
+        };
+        if (requestBody !== undefined) {
+          fetchOptions.body = requestBody;
+        }
+
+        const finalUrl = urlWithKey.toString();
+        try {
+          response = await fetch(finalUrl, fetchOptions);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+
+        if (response.ok) {
+          break;
+        }
+
         const errorText = await response.text();
-        console.error(`[Proxy] Gemini API Upstream Error (${response.status}):`, errorText);
-        console.error(`[Proxy] Target URL used: ${finalUrl.replace(apiKey, 'REDACTED')}`);
+        console.error(
+          `[Proxy] Gemini API Upstream Error (${response.status}) keyIndex=${keyIndex}:`,
+          errorText
+        );
+        console.error(`[Proxy] Target URL used: ${finalUrl.replace(apiKey, "REDACTED")}`);
+
+        const hasBackup = keyIndex < keyChain.length - 1;
+        if (hasBackup && shouldRetryGeminiWithBackupKey(response.status, errorText)) {
+          console.warn(
+            `[Proxy] Retrying Gemini request with backup key (${keyIndex + 2}/${keyChain.length})...`
+          );
+          continue;
+        }
+
         try {
           return res.status(response.status).json(JSON.parse(errorText));
         } catch {
           return res.status(response.status).send(errorText);
         }
+      }
+
+      if (!response?.ok) {
+        return res.status(502).json({ error: "Gemini proxy: unexpected state after key chain." });
       }
 
       // Stream the response back

@@ -11,7 +11,10 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "migrate:firestore": "tsx scripts/migrate-firestore-database.ts",
-    "migrate:firestore:full": "tsx scripts/migrate-firestore-database.ts --full"
+    "migrate:firestore:full": "tsx scripts/migrate-firestore-database.ts --full",
+    "deploy:rules:default": "firebase deploy --config firebase.default-only.json --only firestore:rules",
+    "deploy:rules:prod-db-v3": "firebase deploy --config firebase.prod-db-v3-only.json --only firestore:rules",
+    "deploy:rules:all": "npm run deploy:rules:default && npm run deploy:rules:prod-db-v3"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

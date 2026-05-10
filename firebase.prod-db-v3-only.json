@@ -1,0 +1,7 @@
+{
+  "firestore": {
+    "database": "prod-db-v3",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
