@@ -138,10 +138,8 @@ service cloud.firestore {
       }
       match /budget/{itemId} {
         allow get: if isProjectViewer(projectId) || isAdmin();
-        allow list: if isAuthenticated() && (
-          resource.data.get('ownerId', '') == request.auth.uid ||
-          isProjectViewer(projectId)
-        );
+        // Line items rarely store ownerId; mirror get/list with project access only.
+        allow list: if isProjectViewer(projectId) || isAdmin();
         allow write: if isProjectOwner(projectId) || isAdmin();
       }
       match /episodes/{episodeId} {
@@ -260,6 +258,33 @@ service cloud.firestore {
       );
     }
 
+    // Creator / manager / brand job rows (influencer dashboard, manager assign, brand escrow).
+    match /deliverables/{delId} {
+      allow read: if isAuthenticated() && (
+        resource.data.get('brandId', '') == request.auth.uid ||
+        resource.data.get('managerId', '') == request.auth.uid ||
+        resource.data.get('creatorId', '') == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        resource.data.get('brandId', '') == request.auth.uid ||
+        resource.data.get('managerId', '') == request.auth.uid ||
+        resource.data.get('creatorId', '') == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    match /invitations/{invId} {
+      allow read: if isAuthenticated() && (
+        resource.data.managerId == request.auth.uid ||
+        (request.auth.token.email != null && resource.data.influencerEmail == request.auth.token.email) ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.managerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.managerId == request.auth.uid;
+    }
+
     match /creatorShortlists/{shortlistId} {
       allow create: if isAuthenticated() && request.resource.data.managerId == request.auth.uid;
       allow read: if isAuthenticated() && (
@@ -278,6 +303,16 @@ service cloud.firestore {
       );
     }
 
+    // Doc ID = invite code. Body must include same `code` string so path cannot be spoofed.
+    match /managerInviteCodes/{code} {
+      // Public get so influencers can validate a code before sign-in.
+      allow get: if true;
+      allow create: if isAuthenticated() &&
+        request.resource.data.managerId == request.auth.uid &&
+        request.resource.data.code == code;
+      allow update, delete: if isAuthenticated() && resource.data.managerId == request.auth.uid;
+    }
+
     match /marketplaceAccounts/{accountId} {
       allow read, write: if isAuthenticated() && (
         accountId == request.auth.uid ||
@@ -286,25 +321,33 @@ service cloud.firestore {
     }
 
     match /outreachThreads/{threadId} {
-      allow list: if isAuthenticated() && (
-        resource.data.get('ownerId', '') == request.auth.uid || 
-        resource.data.get('contactId', '') == request.auth.uid ||
-        resource.data.get('projectId', '') == '' // Fallback for migration
-      );
       allow get: if isAuthenticated() && (
-        resource.data.get('ownerId', '') == request.auth.uid || 
-        resource.data.get('contactId', '') == request.auth.uid || 
-        isProjectOwner(resource.data.projectId) || 
+        resource.data.get('contactId', '') == request.auth.uid ||
+        resource.data.get('managerId', '') == request.auth.uid ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
+        (resource.data.get('projectId', '') != '' &&
+          (isProjectOwner(resource.data.projectId) || isProjectViewer(resource.data.projectId))) ||
         isAdmin()
       );
+      allow list: if isAuthenticated() && (
+        resource.data.get('contactId', '') == request.auth.uid ||
+        resource.data.get('managerId', '') == request.auth.uid ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
+        (resource.data.get('projectId', '') != '' &&
+          (isProjectOwner(resource.data.projectId) || isProjectViewer(resource.data.projectId))) ||
+        isAdmin()
+      );
+      // Marketplace pings use empty projectId; project threads require ownership to create.
       allow create: if isAuthenticated() && (
-        isProjectOwner(request.resource.data.projectId) || 
+        request.resource.data.get('projectId', '') == '' ||
+        isProjectOwner(request.resource.data.projectId) ||
         isAdmin()
       );
-      allow update: if isAuthenticated() && (
-        resource.data.get('ownerId', '') == request.auth.uid || 
-        resource.data.contactId == request.auth.uid || 
-        isProjectOwner(resource.data.projectId) || 
+      allow update, delete: if isAuthenticated() && (
+        resource.data.get('contactId', '') == request.auth.uid ||
+        resource.data.get('managerId', '') == request.auth.uid ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
+        (resource.data.get('projectId', '') != '' && isProjectOwner(resource.data.projectId)) ||
         isAdmin()
       );
     }

@@ -75,25 +75,25 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Service Worker specific route for subpath deployments
-  app.get(["/_service-worker.js", "/projects/_service-worker.js"], async (req, res) => {
+  // Service Worker: must be real JS at every path the client registers (SPA fallback returns HTML → SecurityError).
+  const serveServiceWorker = async (res: express.Response) => {
     const distPath = path.join(process.cwd(), "dist");
     const publicPath = path.join(process.cwd(), "public");
     let filePath = path.join(distPath, "_service-worker.js");
-    
-    // Check if it exists in dist, fallback to public
     const { existsSync } = await import("fs");
     if (!existsSync(filePath)) {
       filePath = path.join(publicPath, "_service-worker.js");
     }
-
     if (existsSync(filePath)) {
-      res.setHeader("Content-Type", "application/javascript");
-      res.sendFile(filePath);
+      res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+      res.setHeader("Service-Worker-Allowed", "/");
+      res.sendFile(path.resolve(filePath));
     } else {
-      res.status(404).send("Service worker not found");
+      res.status(404).type("text/plain").send("Service worker not found");
     }
-  });
+  };
+  app.get(["/_service-worker.js", "/projects/_service-worker.js"], (_req, res) => serveServiceWorker(res));
+  app.get("/projects/:projectId/_service-worker.js", (_req, res) => serveServiceWorker(res));
 
   // API Routes
   app.get("/api/proxy/google-doc", async (req, res) => {

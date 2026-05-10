@@ -1,5 +1,5 @@
 import React from 'react';
-import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Briefcase, Check, Send, Sparkles, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { db } from '../lib/firebase';
 import { useAuth } from '../lib/AuthProvider';
 import { BrandBrief, CreatorShortlist, InfluencerRoster } from '../types';
+import { ensureManagerInviteCode } from '../lib/managerInviteCode';
 
 export default function MarketplaceDashboard() {
   const navigate = useNavigate();
@@ -18,21 +19,62 @@ export default function MarketplaceDashboard() {
   const [rosters, setRosters] = React.useState<InfluencerRoster[]>([]);
   const [shortlists, setShortlists] = React.useState<CreatorShortlist[]>([]);
   const [sendingBriefId, setSendingBriefId] = React.useState<string | null>(null);
+  const [managerInviteCode, setManagerInviteCode] = React.useState<string | null>(null);
 
   const role = profile?.marketplaceRole || 'brand';
+
+  React.useEffect(() => {
+    if (!user || role !== 'manager') return;
+    (async () => {
+      const snap = await getDoc(doc(db, 'marketplaceAccounts', user.uid));
+      let code = snap.data()?.managerInviteCode as string | undefined;
+      if (!code) {
+        try {
+          code = await ensureManagerInviteCode(user.uid);
+        } catch {
+          code = undefined;
+        }
+      }
+      setManagerInviteCode(code || null);
+    })();
+  }, [user?.uid, role]);
 
   React.useEffect(() => {
     if (!user) return;
 
     const briefQuery = role === 'manager'
-      ? query(collection(db, 'brandBriefs'), where('visibility', '==', 'marketplace'))
-      : query(collection(db, 'brandBriefs'), where('brandId', '==', user.uid));
+      ? query(
+          collection(db, 'brandBriefs'),
+          where('visibility', '==', 'marketplace'),
+          orderBy('createdAt', 'desc')
+        )
+      : query(
+          collection(db, 'brandBriefs'),
+          where('brandId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
     const rosterQuery = role === 'manager'
-      ? query(collection(db, 'influencerRosters'), where('managerId', '==', user.uid))
-      : query(collection(db, 'influencerRosters'), where('visibility', '==', 'marketplace'));
+      ? query(
+          collection(db, 'influencerRosters'),
+          where('managerId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )
+      : query(
+          collection(db, 'influencerRosters'),
+          where('visibility', '==', 'marketplace'),
+          orderBy('createdAt', 'desc')
+        );
     const shortlistQuery = role === 'manager'
-      ? query(collection(db, 'creatorShortlists'), where('managerId', '==', user.uid))
-      : query(collection(db, 'creatorShortlists'), where('brandId', '==', user.uid));
+      ? query(
+          collection(db, 'creatorShortlists'),
+          where('managerId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )
+      : query(
+          collection(db, 'creatorShortlists'),
+          where('brandId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
 
     const unsubBriefs = onSnapshot(briefQuery, (snapshot) => {
       setBriefs(snapshot.docs.map((brief) => ({ id: brief.id, ...brief.data() } as BrandBrief)));
@@ -137,9 +179,30 @@ export default function MarketplaceDashboard() {
             <h1 className="text-5xl font-black uppercase tracking-tighter">Marketplace Dashboard</h1>
             <p className="text-white/50 mt-2">Brands create briefs. Managers send real creator shortlists. Brands pick three.</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant={role === 'brand' ? 'secondary' : 'outline'} onClick={() => switchRole('brand')}>Brand View</Button>
-            <Button variant={role === 'manager' ? 'secondary' : 'outline'} onClick={() => switchRole('manager')}>Manager View</Button>
+          <div className="flex flex-col items-end gap-3">
+            {role === 'manager' && managerInviteCode && (
+              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-right max-w-md">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Creator invite code</p>
+                <p className="font-mono text-lg font-black tracking-widest text-white">{managerInviteCode}</p>
+                <p className="text-xs text-white/45 mt-1">Creators enter this at <span className="text-blue-300">/influencer-join</span> before signing in so they link to your roster.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 border-white/20 text-white hover:bg-white/10"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(managerInviteCode);
+                    toast.success('Code copied');
+                  }}
+                >
+                  Copy code
+                </Button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button variant={role === 'brand' ? 'secondary' : 'outline'} onClick={() => switchRole('brand')}>Brand View</Button>
+              <Button variant={role === 'manager' ? 'secondary' : 'outline'} onClick={() => switchRole('manager')}>Manager View</Button>
+            </div>
           </div>
         </div>
       </header>
