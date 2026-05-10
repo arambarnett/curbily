@@ -12,9 +12,9 @@ export const schedule = async (
 ) => {
   if (!scenes || scenes.length === 0) return [];
 
-  const apiKey = ((process.env.GEMINI_API_KEY || process.env.API_KEY) || "") as string;
+  const apiKey = "dummy-key";
   const ai = new GoogleGenAI({ 
-    apiKey: apiKey || 'dummy-key', 
+    apiKey, 
     httpOptions: { 
       baseUrl: typeof window !== 'undefined' ? 
         window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 

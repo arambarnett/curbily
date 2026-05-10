@@ -4,8 +4,8 @@ import { parseJSON } from "../../utils";
 export const outreach = async (contact: any, role: string, project: any) => {
   if (!contact || !role || !project) throw new Error("contact, role, and project are required for outreach");
 
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY) || "";
-  const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key', httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
+  const apiKey = "dummy-key";
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
   const FLASH_MODEL = "models/gemini-3-flash-preview";
 
   const response = await ai.models.generateContent({

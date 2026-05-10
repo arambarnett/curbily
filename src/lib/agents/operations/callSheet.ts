@@ -4,8 +4,8 @@ import { parseJSON } from "../../utils";
 export const callSheet = async (day: any, scenes: any[], contacts: any[], location?: string, projectContext?: { isMicroDrama?: boolean; contentType?: string }, onProgress?: (msg: string) => void) => {
   if (!day || !scenes) throw new Error("day and scenes are required for callSheet");
 
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY) || "";
-  const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key', httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
+  const apiKey = "dummy-key";
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
   const FLASH_MODEL = "models/gemini-3-flash-preview";
   const retries = 2;
 

@@ -1,16 +1,13 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.VITE_GOOGLE_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_API_KEY || ""),
-      'process.env.GOOGLE_API_KEY': JSON.stringify(env.VITE_GOOGLE_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_API_KEY || ""),
-    },
+    // Do not inject GEMINI_* or GOOGLE_API_KEY into the browser bundle — the app uses
+    // /gemini-api-proxy with a placeholder client key; the server attaches the real key.
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

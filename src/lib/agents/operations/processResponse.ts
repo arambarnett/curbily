@@ -4,8 +4,8 @@ import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 export const processResponse = async (message: string, thread: any) => {
   if (!message || !thread) throw new Error("message and thread are required for processResponse");
 
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.API_KEY) || "";
-  const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key', httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
+  const apiKey = "dummy-key";
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
   const FLASH_MODEL = "models/gemini-3-flash-preview";
 
   const response = await ai.models.generateContent({

@@ -29,8 +29,6 @@ function resolvePrimaryGeminiApiKey(): string {
     process.env.GEMINI_API_KEY,
     process.env.API_KEY,
     process.env.GOOGLE_API_KEY,
-    process.env.VITE_GOOGLE_API_KEY,
-    process.env.VITE_GEMINI_API_KEY,
     process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   ];
   for (const cand of candidates) {

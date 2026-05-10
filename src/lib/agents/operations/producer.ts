@@ -4,10 +4,9 @@ import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 export const producer = async (query: string, context: any) => {
   if (!query) throw new Error("query is required for producer");
 
-  const apiKey = ((process.env.GEMINI_API_KEY || process.env.API_KEY) || "") as string;
-  
+  const apiKey = "dummy-key";
 
-  const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key', httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { baseUrl: typeof window !== 'undefined' ? window.location.origin + (window.location.pathname.startsWith('/projects') ? '/projects/gemini-api-proxy/' : '/gemini-api-proxy/') : 'http://localhost:3000/gemini-api-proxy/' } });
   const MODEL = "models/gemini-3-flash-preview";
 
   const responseSchema = {
