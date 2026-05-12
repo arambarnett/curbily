@@ -910,11 +910,23 @@ export default function InvestmentMemo() {
 
   const isPrintMode = searchParams.get('print') === 'true';
   const exportPdfFilter = searchParams.get('export');
+  const chromeless =
+    searchParams.get('chromeless') === '1' || searchParams.get('chromeless') === 'true';
+
   const slidesToExport = React.useMemo(() => {
     if (exportPdfFilter !== 'seed') return slides;
     const i = slides.findIndex((s) => s.title.startsWith('Seed readiness'));
     return i >= 0 ? slides.slice(i) : slides;
   }, [exportPdfFilter]);
+
+  const slideQs = searchParams.get('slide') ?? '';
+
+  React.useEffect(() => {
+    if (slideQs === '') return;
+    const n = Number.parseInt(slideQs, 10);
+    if (!Number.isFinite(n) || n < 0 || n >= slides.length) return;
+    setCurrentSlide(n);
+  }, [slideQs]);
 
   const NO_SCROLL_SLIDE_INDEX = new Set([
     INDEX_VISION_SLIDE,
@@ -944,32 +956,131 @@ export default function InvestmentMemo() {
 
   return (
     <div className={`min-h-screen bg-slate-50 ${isPrintMode ? 'print:bg-white print:p-0' : ''}`}>
+      <style>
+        {`
+          @media print {
+            @page {
+              size: 11in 8.5in;
+              margin: 0;
+            }
+            html,
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            #pdf-export-container {
+              width: 100% !important;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #f8fafc !important;
+            }
+            /* Match on-screen deck: one Letter-landscape sheet per slide */
+            .export-slide {
+              width: 11in !important;
+              height: 8.5in !important;
+              max-height: 8.5in !important;
+              min-height: 0 !important;
+              padding: 0.58in 0.68in !important;
+              margin: 0 auto !important;
+              box-sizing: border-box !important;
+              background: #fff !important;
+              page-break-after: always !important;
+              break-after: page !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              overflow: hidden !important;
+              display: flex !important;
+              flex-direction: column !important;
+              -webkit-font-smoothing: antialiased;
+            }
+            .export-slide:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            /* Print engines often use a narrow width; force the same title scale as lg: on the site */
+            .export-slide-heading h1 {
+              font-size: 3.25rem !important;
+              line-height: 1.05 !important;
+              letter-spacing: -0.02em !important;
+            }
+            .export-slide-heading p {
+              font-size: 1.25rem !important;
+              line-height: 1.625 !important;
+              max-width: 42rem !important;
+            }
+            .export-slide > div {
+              flex: 1 1 0 !important;
+              min-height: 0 !important;
+              max-width: 100% !important;
+              overflow: hidden !important;
+              display: flex !important;
+              flex-direction: column !important;
+            }
+            .export-slide .export-slide-body {
+              flex: 1 1 0 !important;
+              min-height: 0 !important;
+              overflow: hidden !important;
+              width: 100% !important;
+              max-width: 72rem !important;
+            }
+            .export-slide table,
+            .export-slide .recharts-responsive-container {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+          }
+        `}
+      </style>
       <div
         id="pdf-export-container"
         className={
-          isPrintMode ? 'w-[1024px] bg-white print:block' : 'absolute pointer-events-none'
+          isPrintMode ? 'mx-auto max-w-[1024px] w-full bg-white print:!max-w-none print:w-full print:block' : 'absolute pointer-events-none'
         }
         style={!isPrintMode ? { top: 0, left: '-9999px', width: '1024px', zIndex: -100 } : undefined}
       >
         {slidesToExport.map((slide, i) => (
           <div
             key={`${slide.title}-${i}`}
-            className="export-slide w-[1024px] min-h-[768px] p-10 flex flex-col bg-white relative break-after-page border-b border-slate-100 print:border-none"
+            className="export-slide w-[1024px] min-h-[768px] px-6 py-10 lg:px-8 lg:py-16 flex flex-col bg-white relative break-after-page border-b border-slate-100 print:border-none print:bg-white print:w-full print:max-w-none"
           >
-            <div className="w-full max-w-4xl mx-auto flex flex-col grow">
-              <div className="mb-6 shrink-0">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-1.5">{slide.title}</h2>
-                <p className="text-[15px] text-slate-500 leading-snug max-w-prose">{slide.subtitle}</p>
+            <div className="w-full max-w-6xl mx-auto flex flex-col grow min-h-0">
+              <header className="mb-8 lg:mb-12 shrink-0 export-slide-heading">
+                <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-semibold tracking-tight text-slate-900 mb-4">
+                  {slide.title}
+                </h1>
+                <p className="text-xl text-slate-500 max-w-4xl leading-relaxed">{slide.subtitle}</p>
+              </header>
+              <div className="export-slide-body flex-1 min-h-0 w-full max-w-6xl pb-6">
+                {slide.content}
               </div>
-              <div className="flex-1 min-h-0">{slide.content}</div>
             </div>
           </div>
         ))}
       </div>
 
       {!isPrintMode && (
-        <div className="print:hidden min-h-screen flex flex-col bg-slate-50">
-          <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm">
+        <div className={`print:hidden min-h-screen flex flex-col bg-slate-50${chromeless ? ' deck-chromeless' : ''}`}>
+          {chromeless ? (
+            <style>
+              {`
+                .deck-chromeless .deck-hide-chromeless {
+                  display: none !important;
+                }
+                .deck-chromeless .deck-main-pad {
+                  padding-bottom: 0 !important;
+                }
+                .deck-chromeless #deck-slide-capture-root {
+                  min-height: calc(100vh - 2rem);
+                  padding-top: 1.25rem !important;
+                }
+              `}
+            </style>
+          ) : null}
+          <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-sm deck-hide-chromeless">
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 lg:px-8">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
@@ -1011,14 +1122,15 @@ export default function InvestmentMemo() {
             </div>
           </header>
 
-          <div className="flex-1 flex flex-col pb-28">
+          <div className="flex-1 flex flex-col pb-28 deck-main-pad">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: chromeless ? 0 : 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22 }}
+                exit={{ opacity: 0, y: chromeless ? 0 : -8 }}
+                transition={{ duration: chromeless ? 0 : 0.22 }}
+                id="deck-slide-capture-root"
                 className="mx-auto w-full max-w-6xl flex-1 flex flex-col px-6 lg:px-8 py-10 lg:py-16 min-h-0"
               >
                 <header className="mb-8 lg:mb-12 shrink-0">
@@ -1038,7 +1150,7 @@ export default function InvestmentMemo() {
             </AnimatePresence>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur-sm py-5 z-40">
+          <div className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 backdrop-blur-sm py-5 z-40 deck-hide-chromeless">
             <div className="mx-auto flex max-w-6xl items-center justify-center gap-10 px-6">
               <Button
                 variant="outline"

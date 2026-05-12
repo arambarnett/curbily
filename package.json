@@ -22,7 +22,8 @@
     "migrate:firestore:shallow:exec:rates": "tsx scripts/migrate-firestore-database.ts --execute --collections=unionRates,canonicalRates,dimPositions,dimLocalMap,dimSchedules --shallow",
     "deploy:rules:default": "firebase deploy --config firebase.default-only.json --only firestore:rules",
     "deploy:rules:prod-db-v3": "firebase deploy --config firebase.prod-db-v3-only.json --only firestore:rules",
-    "deploy:rules:all": "npm run deploy:rules:default && npm run deploy:rules:prod-db-v3"
+    "deploy:rules:all": "npm run deploy:rules:default && npm run deploy:rules:prod-db-v3",
+    "deck:screenshot-pdf": "node scripts/capture-deck-screenshots.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
@@ -68,10 +69,15 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@rollup/rollup-darwin-x64": "^4.60.1",
+    "@tailwindcss/oxide-darwin-x64": "^4.2.2",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "isomorphic-git": "^1.37.6",
+    "lightningcss-darwin-x64": "^1.32.0",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.50.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
